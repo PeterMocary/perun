@@ -30,7 +30,7 @@ class CollectEngine(ABC):
     :ivar str locks_dir: the directory path of the lock files
     """
     # Set the supported engines
-    _supported = ['stap', 'ebpf']
+    _supported = ['stap', 'ebpf', 'pin']
 
     def __init__(self, config):
         """ Initializes the default engine parameters.

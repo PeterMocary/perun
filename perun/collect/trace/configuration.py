@@ -18,6 +18,8 @@ import perun.logic.temp as temp
 with demandimport.enabled():
     import perun.collect.trace.ebpf.engine as bpf
 
+import perun.collect.trace.pin.engine as pin
+
 
 class Configuration:
     """ A class that stores the Tracer configuration provided by the CLI.
@@ -114,8 +116,10 @@ class Configuration:
         """
         if self.engine == 'stap':
             self.engine = SystemTapEngine(self)
-        else:
+        elif self.engine == 'ebpf':
             self.engine = bpf.BpfEngine(self)
+        else:
+            self.engine = pin.PinEngine(self)
 
     def get_functions(self):
         """Access the configuration of the function probes

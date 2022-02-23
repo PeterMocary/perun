@@ -55,12 +55,13 @@ def before(executable, **kwargs):
     check(GLOBAL_DEPENDENCIES)
     config.engine.check_dependencies()
 
-    # Extract and / or post-process the collect configuration
-    extract_configuration(config.engine, kwargs['probes'])
-    if not kwargs['probes'].func and not kwargs['probes'].usdt:
-        msg = ('No profiling probes created (due to invalid specification, failed extraction or '
+    if config.engine.name != 'pin':
+        # Extract and / or post-process the collect configuration
+        extract_configuration(config.engine, kwargs['probes'])
+        if not kwargs['probes'].func and not kwargs['probes'].usdt:
+            msg = ('No profiling probes created (due to invalid specification, failed extraction or '
                'filtering)')
-        return CollectStatus.ERROR, msg, dict(kwargs)
+            return CollectStatus.ERROR, msg, dict(kwargs)
 
     # Set the variables for optimization methods
     kwargs['binary'] = config.binary
