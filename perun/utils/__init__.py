@@ -371,7 +371,7 @@ def get_supported_module_names(package):
         'collect': ['trace', 'memory', 'time', 'complexity', 'bounds'],
         'postprocess': ['clusterizer', 'normalizer', 'regression-analysis',
                         'regressogram', 'moving-average', 'kernel-regression'],
-        'view': ['bars', 'flamegraph', 'flow', 'heapmap', 'raw', 'scatter', 'tableof']
+        'view': ['bars', 'flamegraph', 'flow', 'heapmap', 'raw', 'scatter', 'tableof', 'funcargs', 'basicblocks']
     }[package]
 
 

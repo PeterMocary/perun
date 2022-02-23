@@ -20,8 +20,8 @@ import perun.logic.runner as runner
 import perun.utils.log as stdout
 import perun.utils.metrics as metrics
 import perun.utils as utils
-from perun.profile.factory import Profile
 from perun.utils.structs import CollectStatus
+from perun.profile.factory import Profile
 
 
 def before(executable, **kwargs):
@@ -56,12 +56,13 @@ def before(executable, **kwargs):
     check(GLOBAL_DEPENDENCIES)
     config.engine.check_dependencies()
 
-    # Extract and / or post-process the collect configuration
-    extract_configuration(config.engine, kwargs['probes'])
-    if not kwargs['probes'].func and not kwargs['probes'].usdt:
-        msg = ('No profiling probes created (due to invalid specification, failed extraction or '
+    if config.engine.name != 'pin':
+        # Extract and / or post-process the collect configuration
+        extract_configuration(config.engine, kwargs['probes'])
+        if not kwargs['probes'].func and not kwargs['probes'].usdt:
+            msg = ('No profiling probes created (due to invalid specification, failed extraction or '
                'filtering)')
-        return CollectStatus.ERROR, msg, dict(kwargs)
+            return CollectStatus.ERROR, msg, dict(kwargs)
 
     # Set the variables for optimization methods
     kwargs['binary'] = config.binary
@@ -118,7 +119,7 @@ def after(**kwargs):
     WATCH_DOG.info('Raw data file size: {}'.format(utils.format_file_size(data_size)))
 
     # Dirty temporary hack
-    if kwargs['config'].engine.name == 'ebpf':
+    if kwargs['config'].engine.name in ('ebpf', 'pin'):
         kwargs['profile'] = Profile()
         kwargs['profile'].update_resources(
             {'resources': list(kwargs['config'].engine.transform(**kwargs))}, 'global'
@@ -166,7 +167,14 @@ def teardown(**kwargs):
               default=CollectEngine.default(),
               help='Sets the data collection engine to be used:\n'
                    ' - stap: the SystemTap framework\n'
-                   ' - ebpf: the eBPF framework')
+                   ' - ebpf: the eBPF framework\n'
+                   ' - pin: the Pin framework')
+@click.option('--collect-arguments', '-ca', is_flag=True, default=False,
+              help="Collect basic arguments of the functions.")
+@click.option('--collect-basic-blocks', '-cbb', is_flag=True, default=False,
+              help="Collect run-times of basic blocks.")
+@click.option('--probed', '-p', is_flag=True, default=False,
+              help="Perform collection using Pin's probed mode (can't be used when collection of basic blocks is enabled) [EXPERIMENTAL].")
 @click.option('--strategy', '-s', type=click.Choice(Strategy.supported()),
               default=Strategy.default(), required=True,
               help='Select strategy for probing the binary. See documentation for'
