@@ -1,0 +1,32 @@
+
+int main(int argc, char* argv[])
+{
+    // Initialize symbol table code, needed for rtn instrumentation
+    PIN_InitSymbols();
+
+    //Initialize mutex lock for the shared output file
+    PIN_MutexInit(&outFileLock);
+
+    // Initialize pin
+    if (PIN_Init(argc, argv)) return 1;
+
+    // Open output file
+    outFile.open(KnobOutputFile.Value().c_str());
+
+    // Register Routine to be called to instrument rtn
+    IMG_AddInstrumentFunction(ImageHandler, 0);
+    {% if bbl %}
+    TRACE_AddInstrumentFunction(Trace, 0);
+    {% endif %}
+
+    // Register Fini to be called when the application exits
+    PIN_AddFiniFunction(Fini, 0);
+
+    // Start the program, never returns
+    {% if probed -%}
+    PIN_StartProgramProbed();
+    {% else -%}
+    PIN_StartProgram();
+    {% endif %}
+    return 0;
+}

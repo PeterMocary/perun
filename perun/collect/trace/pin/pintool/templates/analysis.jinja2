@@ -1,0 +1,57 @@
+{# Probed mode doesn't support thread IDs - the PIN_GetTid() will return process ID instead, however to preserve the output format it is used#}
+{% for location in range(2) %}
+VOID {% if location==0 %}rtn_analysis_before{% else %}rtn_analysis_after{% endif %}(RoutineInfo* routineInfo{% if not probed %}, THREADID tid{% endif %}){
+    UINT64 timeStamp;
+    PIN_MutexLock(&outFileLock);
+    OS_Time(&timeStamp);
+    outFile << Granularity::G_RTN << ";"
+            << {% if location==0 %}Location::L_BEFORE{% else %}Location::L_AFTER{% endif %} << ";"
+            << {% if probed %}PIN_GetTid(){% else %}tid{% endif %} << ";"
+            << PIN_GetPid() << ";"
+            << timeStamp << ";"
+            << routineInfo->id << ";"
+            << routineInfo->name << endl;
+    PIN_MutexUnlock(&outFileLock);
+}
+{% endfor %}
+{# The probed mode doesn't support lower granularity than routines, therefore this part doesn't need to handle probed mode differences #}
+{% if bbl %}
+{% for location in range(2) %}
+VOID {% if location==0 %}bbl_analysis_before{% else %}bbl_analysis_after{% endif %}(RoutineInfo* routineInfo, THREADID tid, UINT64 bbl_id){
+    UINT64 timeStamp;
+    PIN_MutexLock(&outFileLock);
+    OS_Time(&timeStamp);
+    outFile << Granularity::G_BBL << ";"
+            << {% if location==0 %}Location::L_BEFORE{% else %}Location::L_AFTER{% endif %} << ";"
+            << tid << ";"
+            << PIN_GetPid() << ";"
+            << timeStamp << ";"
+            << routineInfo->id << ";"
+            << routineInfo->name << ";"
+            << bbl_id << endl;
+    PIN_MutexUnlock(&outFileLock);
+}
+{% endfor %}
+{% endif %}
+
+{% if collect_arguments %}
+{% for function_name in function_table %}
+VOID rtn_analysis_before_{{ function_name }}(RoutineInfo* routineInfo{% if not probed %}, THREADID tid{% endif %}{% for arg_index in function_table[function_name] %}, {{ function_table[function_name][arg_index] }} *arg{{ arg_index }}{% endfor %}){
+    UINT64 timeStamp;
+    PIN_MutexLock(&outFileLock);
+    OS_Time(&timeStamp);
+    outFile << Granularity::G_RTN << ";"
+            << Location::L_BEFORE << ";"
+            << {% if probed %}PIN_GetTid(){% else %}tid{% endif %} << ";"
+            << PIN_GetPid() << ";"
+            << timeStamp << ";"
+            << routineInfo->id << ";"
+            << routineInfo->name
+            {% for arg_index in function_table[function_name] %}
+            << ";" << *arg{{ arg_index }}
+            {% endfor %}
+            << endl;
+    PIN_MutexUnlock(&outFileLock);
+}
+{% endfor %}
+{% endif %}

@@ -1,0 +1,85 @@
+VOID ImageHandler(IMG img, VOID *v) {
+    if (IMG_IsMainExecutable(img)) {
+        for (SYM sym = IMG_RegsymHead(img); SYM_Valid(sym); sym = SYM_Next(sym)) {
+            RTN rtn = RTN_FindByAddress(IMG_LowAddress(img) + SYM_Value(sym));
+            if (RTN_Valid(rtn) && !RTN_IsDynamic(rtn) && !RTN_IsArtificial(rtn)) {
+{#
+VOID Routine(RTN rtn, VOID* v){
+    if (IMG_IsMainExecutable(SEC_Img(RTN_Sec(rtn))) && RTN_Valid(rtn) && !RTN_IsDynamic(rtn) && !RTN_IsArtificial(rtn)) {
+    #}
+                // Store information about routine for the output
+                RoutineInfo* rc = new RoutineInfo;
+                rc->name = PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY);
+                rc->id = RTN_Id(rtn);
+
+                {% if probed -%}
+                PROTO after_f = PROTO_Allocate(PIN_PARG(VOID), CALLINGSTD_DEFAULT, "rtn_analysis_after", PIN_PARG(RoutineInfo*), PIN_PARG_END());
+                {%- endif %}
+
+                {% if not probed %}RTN_Open(rtn);{% endif %}
+
+                {% if collect_arguments %}
+                int found_in_table = 0;
+                for (int func_index = 0;func_index < FUNC_CNT; func_index++) {
+                    if (function_names[func_index] == rc->name) {
+                        {% for function_name in function_table %}
+                        if (rc->name == "{{ function_name }}") {
+                            RTN_InsertCall{% if probed %}Probed{% endif %}(rtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_{{ function_name }},
+                                                IARG_PTR, rc,
+                                                {% if not probed %}IARG_THREAD_ID,{% endif %}
+                                                {% for arg_index in function_table[function_name] %}
+                                                IARG_FUNCARG_ENTRYPOINT_REFERENCE, {{ arg_index }},
+                                                {% endfor %}
+                                                IARG_END);
+                            break;
+                        }
+                        found_in_table = 1;
+                        {% endfor %}
+                    }
+                }
+                if (!found_in_table) {
+                    RTN_InsertCall{% if probed %}Probed{% endif %}(rtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before, IARG_PTR, rc, {% if not probed %}IARG_THREAD_ID,{% endif %}IARG_END);
+                }
+                {% else %} {# Don't collect arguments #}
+                RTN_InsertCall{% if probed %}Probed{% endif %}(rtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before, IARG_PTR, rc, {% if not probed %}IARG_THREAD_ID,{% endif %}IARG_END);
+                {% endif %}
+                RTN_InsertCall{% if probed %}Probed{% endif %}(rtn, IPOINT_AFTER, (AFUNPTR)rtn_analysis_after, {% if probed %}IARG_PROTOTYPE, after_f, {% endif %}IARG_PTR, rc, {% if not probed %}IARG_THREAD_ID,{% endif %}IARG_END);
+
+                {% if not probed %}RTN_Close(rtn);{% endif %}
+
+                {% if probed -%}
+                PROTO_Free(after_f);
+                {% endif %}
+            }
+        }
+    }
+}
+
+{% if bbl %}
+// Pin calls this function every time a new Trace is executed
+VOID Trace(TRACE trace, VOID *v) {
+
+    if (!RTN_Valid(TRACE_Rtn(trace)) ||
+        RTN_IsDynamic(TRACE_Rtn(trace)) ||
+        RTN_IsArtificial(TRACE_Rtn(trace))) {
+        //NOTE: Sometimes is the routine invalid
+        std::cout << "invalid routine" << endl;
+        return;
+    } else if ((IMG_Valid(SEC_Img(RTN_Sec(TRACE_Rtn(trace)))) && !IMG_IsMainExecutable(SEC_Img(RTN_Sec(TRACE_Rtn(trace)))))) {
+        std::cout << "invalid img" << endl;
+        return;
+    }
+
+    RoutineInfo* rc = new RoutineInfo;
+    rc->name = PIN_UndecorateSymbolName(RTN_Name(TRACE_Rtn(trace)), UNDECORATION_NAME_ONLY);
+    rc->id = RTN_Id(TRACE_Rtn(trace));
+
+    //NOTE: bbl could be invalid
+    for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl))
+    {
+        UINT64 bbl_id = bbl_counter++;
+        INS_InsertCall(BBL_InsHead(bbl), IPOINT_BEFORE, (AFUNPTR)bbl_analysis_before, IARG_PTR, rc, IARG_THREAD_ID, IARG_UINT64, bbl_id, IARG_END);
+        INS_InsertCall(BBL_InsTail(bbl), IPOINT_BEFORE, (AFUNPTR)bbl_analysis_after, IARG_PTR, rc, IARG_THREAD_ID, IARG_UINT64, bbl_id, IARG_END);
+    }
+}
+{% endif %}
