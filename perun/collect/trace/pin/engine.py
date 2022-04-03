@@ -3,8 +3,6 @@
 
 import perun.collect.trace.collect_engine as engine
 from perun.utils.log import quiet_info, msg_to_stdout
-#import perun.utils as utils
-#from perun.utils.helpers import SuppressedExceptions
 from perun.profile.factory import Profile
 from perun.collect.trace.values import check
 from perun.collect.trace.pin.pintool import pintool
@@ -12,6 +10,7 @@ from perun.logic.temp import list_all_temps, set_protected_status
 from perun.logic.pcs import get_tmp_directory
 import perun.utils as utils
 import perun.collect.trace.pin.parse as parse
+import perun.collect.trace.pin.scan_binary as scan_binary
 
 class PinEngine(engine.CollectEngine):
     """ The Pin engine class, derived from the base CollectEngine.
@@ -59,10 +58,15 @@ r
 
         :param kwargs: the required parameters
         """
+        # FIXME: this shoud be done only if collection of arguments is enabled
+        msg_to_stdout('[Info]: Scanning binary for functions and their arguments.',2)
+        #print(self.binary)
+        self.function_table = scan_binary.process_file(self.binary)
 
         msg_to_stdout('[Info]: Assebling the pintool.',2)
-        pintool.assemble_pintool(self.pintool_src, self.pintool_makefile)
-        print(f'make -C {get_tmp_directory()}')
+        pintool.assemble_pintool(self.pintool_src, self.pintool_makefile, self.function_table)
+
+        #print(f'make -C {get_tmp_directory()}')
         utils.run_safely_external_command(f'make -C {get_tmp_directory()}')
 
 
@@ -74,7 +78,7 @@ r
         """
         msg_to_stdout('[Info]: Collecting the performance data.',2)
         #FIXME executable in the CWD?
-        print(f'pin -t {get_tmp_directory()}/obj-intel64/pintool.so -o {self.data} -- {config.executable}')
+        #print(f'pin -t {get_tmp_directory()}/obj-intel64/pintool.so -o {self.data} -- {config.executable}')
         utils.run_safely_external_command(f'pin -t {get_tmp_directory()}/obj-intel64/pintool.so -o {self.data} -- {config.executable}')
 
     def transform(self, config, **kwargs):
@@ -85,7 +89,7 @@ r
         :return iterable: a generator object that produces the resources
         """
         msg_to_stdout('[Info]: Transforming the collected data to perun profile.',2)
-        profile = parse.parse_data(self.data, config.executable.workload)
+        profile = parse.parse_data(self.data, config.executable.workload, self.function_table)
         return profile
 
 

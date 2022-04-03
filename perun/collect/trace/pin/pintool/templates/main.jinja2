@@ -14,7 +14,11 @@ int main(int argc, char* argv[])
     outFile.open(KnobOutputFile.Value().c_str());
 
     // Register Routine to be called to instrument rtn
+    {#
     IMG_AddInstrumentFunction(ImageHandler, 0);
+    #}
+    RTN_AddInstrumentFunction(Routine,0);
+
     {% if bbl %}
     TRACE_AddInstrumentFunction(Trace, 0);
     {% endif %}

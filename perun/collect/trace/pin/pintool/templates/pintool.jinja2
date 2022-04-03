@@ -23,7 +23,7 @@ KNOB<string> KnobOutputFile(KNOB_MODE_OVERWRITE, "pintool", "o", "raw_collection
 
 {% if collect_arguments %}
 #define FUNC_CNT {{ function_table_len }}
-string function_names[FUNC_CNT] { {{ get_func_names() }} };
+string function_names[FUNC_CNT] { {{ func_names }} };
 {% endif %}
 
 typedef struct RoutineInfo {

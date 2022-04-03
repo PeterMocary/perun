@@ -1,12 +1,12 @@
+{#
 VOID ImageHandler(IMG img, VOID *v) {
     if (IMG_IsMainExecutable(img)) {
         for (SYM sym = IMG_RegsymHead(img); SYM_Valid(sym); sym = SYM_Next(sym)) {
             RTN rtn = RTN_FindByAddress(IMG_LowAddress(img) + SYM_Value(sym));
             if (RTN_Valid(rtn) && !RTN_IsDynamic(rtn) && !RTN_IsArtificial(rtn)) {
-{#
+#}
 VOID Routine(RTN rtn, VOID* v){
     if (IMG_IsMainExecutable(SEC_Img(RTN_Sec(rtn))) && RTN_Valid(rtn) && !RTN_IsDynamic(rtn) && !RTN_IsArtificial(rtn)) {
-    #}
                 // Store information about routine for the output
                 RoutineInfo* rc = new RoutineInfo;
                 rc->name = PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY);
@@ -22,6 +22,7 @@ VOID Routine(RTN rtn, VOID* v){
                 int found_in_table = 0;
                 for (int func_index = 0;func_index < FUNC_CNT; func_index++) {
                     if (function_names[func_index] == rc->name) {
+                        found_in_table = 1;
                         {% for function_name in function_table %}
                         if (rc->name == "{{ function_name }}") {
                             RTN_InsertCall{% if probed %}Probed{% endif %}(rtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_{{ function_name }},
@@ -33,7 +34,6 @@ VOID Routine(RTN rtn, VOID* v){
                                                 IARG_END);
                             break;
                         }
-                        found_in_table = 1;
                         {% endfor %}
                     }
                 }
@@ -52,8 +52,10 @@ VOID Routine(RTN rtn, VOID* v){
                 {% endif %}
             }
         }
+{#
     }
 }
+#}
 
 {% if bbl %}
 // Pin calls this function every time a new Trace is executed

@@ -2,7 +2,6 @@ from perun.profile.factory import Profile
 from perun.utils.log import msg_to_stdout
 from abc import ABC, abstractmethod;
 from enum import IntEnum
-from perun.collect.trace.pin.scan_binary import get_func_table
 
 
 class Location(IntEnum):
@@ -161,14 +160,15 @@ class FunctionCallRecord(Record):
         return profile_data
 
     def __repr__(self) -> str:
-        return 'RTN:\n'                                     \
+        # FIXME: order of output
+        return 'RTN:\n' \
+               f'args:           {self.args}\n'             \
                f'function_name:  {self.name}\n'             \
+               f'delta:          {self.time_delta}\n'       \
                f'function_id:    {self.rtn_id}\n'           \
                f'tid:            {self.tid}\n'              \
-               f'delta:          {self.time_delta}\n'       \
                f'entry:          {self.entry_timestamp}\n'  \
-               f'order:          {self.call_order}\n'       \
-               f'args:           {self.args}\n'
+               f'order:          {self.call_order}\n'
 
 
 class BasicBlockRecord(Record):
@@ -179,8 +179,8 @@ class BasicBlockRecord(Record):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.rtn_id = kwargs['rtn_id'];
-        self.bbl_id = kwargs['bbl_id'];
+        self.rtn_id = kwargs['rtn_id']
+        self.bbl_id = kwargs['bbl_id']
 
     def get_profile_data(self) -> dict:
         """ Creates suitable representation of the record data for the perun profile.
@@ -206,7 +206,7 @@ class BasicBlockRecord(Record):
                f'entry:          {self.entry_timestamp}\n'
 
 
-def parse_data(file: str, workload: str):
+def parse_data(file: str, workload: str, function_table=None):
     """ Parses the raw data output from pin and creates Records from it which are then converted to perun profile
     """
 
@@ -240,9 +240,9 @@ def parse_data(file: str, workload: str):
                 data[key] = int(value) if key != 'name' else value
             data = RawDataEntry(data)
 
-            if len(line) > len(format): # There are additional function arguments
-                table = get_func_table() # Function argument types collected by pyelftools (or pygccxml, etc.)
-                arg_types = table[data.name]
+            if function_table and len(line) > len(format): # There are additional function arguments
+                # Function argument types collected by pyelftools (or pygccxml, etc.) are stored in function_table
+                arg_types = function_table[data.name]
                 arg_values = line[len(format):] # Values of function arguments collected by PIN
 
                 # Create new representation of raw data and store it
@@ -291,12 +291,13 @@ def parse_data(file: str, workload: str):
                     not_paired_lines.append(data)
             else:
                 # Stash entry point line, so that it can be easily found when complementary line (exit point) is loaded
-                backlog.append(data) #FIXME: Insert at the begining could be better for searching if its overhead isn't worse
+                # FIXME: Insert at the begining could be better for searching if its overhead isn't worse
+                backlog.append(data)
 
-    #msg_to_stdout('------------ RECORDS ------------', 2)
-    # for record in records:
-    #     if record.name == "QuickSortBad":
-    #         msg_to_stdout(record, 2)
+    msg_to_stdout('------------ RECORDS ------------', 2)
+    for record in records:
+        if record.name == "QuickSortBad":
+            msg_to_stdout(record, 2)
 
     #not_paired_lines = not_paired_lines + backlog_rtn + backlog_bbl
     #msg_to_stdout('------------ NOT PAIRED ------------', 2)
@@ -315,5 +316,5 @@ def parse_data(file: str, workload: str):
 # TODO: Unify the function/routine naming
 # TODO: Better debug messages in verbose mode
 # TODO: figure out that the perun profile doesn't match expected format
-# TODO: in case of string argument count its legth and store it in profile
+# TODO: in case of string argument count its length and store it in profile
 
