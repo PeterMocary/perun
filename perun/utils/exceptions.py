@@ -296,15 +296,15 @@ class InvalidTransformationException(GenericRegressionExceptionBase):
 
 
 class InvalidBinaryException(Exception):
-    """Raised when collector parameter 'binary' is not actually executable ELF file"""
+    """Raised when collector parameter 'binary' is not actually executable ELF file or doesn't have DWARF info"""
     def __init__(self, binary):
         """
         :param str binary: the supplied binary parameter
         """
         super().__init__("")
         self.binary = binary
-        self.msg = ("Supplied binary parameter '{0}' does not exist or is not an "
-                    "executable ELF file.".format(self.binary))
+        self.msg = ("Supplied binary parameter '{0}' does not exist, or is not an "
+                    "executable ELF file or doesn't have DWARF info.".format(self.binary))
 
     def __str__(self):
         return self.msg

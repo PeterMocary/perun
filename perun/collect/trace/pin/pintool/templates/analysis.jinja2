@@ -17,7 +17,7 @@ VOID {% if location==0 %}rtn_analysis_before{% else %}rtn_analysis_after{% endif
 {# The probed mode doesn't support lower granularity than routines, therefore this part doesn't need to handle probed mode differences #}
 {% if bbl %}
 {% for location in range(2) %}
-VOID {% if location==0 %}bbl_analysis_before{% else %}bbl_analysis_after{% endif %}(RoutineInfo* routineInfo, THREADID tid, UINT64 bbl_id){
+VOID {% if location==0 %}bbl_analysis_before{% else %}bbl_analysis_after{% endif %}(RoutineInfo* routineInfo, THREADID tid, ADDRINT bbl_id){
     UINT64 timeStamp;
     PIN_MutexLock(&outFileLock);
     OS_Time(&timeStamp);

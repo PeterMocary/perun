@@ -1,17 +1,22 @@
-import pygccxml
 from elftools.elf.elffile import ELFFile
 from elftools.common.py3compat import bytes2str
 from elftools.dwarf.die import DIE
 
+from perun.utils.exceptions import InvalidBinaryException
+
+
 def process_file(filename: str) -> dict:
+    """ Read DWARF info from file and extract information about functions from it.
+        :param str filename: binary with DWARF debug info one wants to analyse
+        :return dict: dictionary with names and parameter types of functions
+    """
     print('Processing file:', filename)
     with open(filename, 'rb') as f:
         elffile = ELFFile(f)
 
         if not elffile.has_dwarf_info():
-            print('  file has no DWARF info')
-            #FIXME: add exception
-            return
+            # File has no DWARF info
+            raise InvalidBinaryException
 
         dwarfinfo = elffile.get_dwarf_info()
 
@@ -19,12 +24,19 @@ def process_file(filename: str) -> dict:
         for CU in dwarfinfo.iter_CUs():
             # Start with the top DIE, the root for this CU's DIE tree
             top_DIE = CU.get_top_DIE()
-            #print('    name=%s' % top_DIE.get_full_path())
+            # print('name=%s' % top_DIE.get_full_path())
             die_func_info(top_DIE, func_table)
-
+    import pprint  # TODO: remove
+    pprint.pprint(func_table)
     return func_table
 
+
 def die_func_info(die, func_table: dict):
+    """ Gather information about functions. Particularly their names, argument types and indexes.
+
+        :param DIE die: the debugging information entry from which one wants to extract information about functions
+        :param dict func_table: dictionary to which are the information appended
+    """
     for child in die.iter_children():
         if child.tag == 'DW_TAG_subprogram':
             function_name_attribute = child.attributes['DW_AT_name']
@@ -46,11 +58,20 @@ def die_func_info(die, func_table: dict):
 
 
 def get_type_str(type_die):
+
+    """ Extracts type from dwarf format to string.
+        :param DIE type_die: debugging information entry containing information about type
+        :return: type in str or None if the type isn't one of selected types
+    """
     if type_die.tag == 'DW_TAG_base_type':
         type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
-        if type_str == "wchar_t":
+        # if type_str == "wchar_t":
+        #     return None
+
+        if type_str in ["int", "long", "char", "unsigned"]:  # bool is "_Bool"
+            return type_str
+        else:
             return None
-        return type_str if type_str != "_Bool" else "bool"
 
     elif type_die.tag == 'DW_TAG_pointer_type':
         if 'DW_AT_type' in type_die.attributes:
@@ -70,22 +91,6 @@ def get_type_str(type_die):
         except KeyError:
             return None
         type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
-        return 'const ' + type_str if type_str != "_Bool" else "const bool"
-
-    # elif type_die.tag == "DW_TAG_subroutine_type":
-    #     return None
-    #
-    # elif type_die.tag == 'DW_TAG_reference_type':
-    #     # if 'DW_AT_type' in type_die.attributes:
-    #     #     type_die = type_die.get_DIE_from_attribute('DW_AT_type')
-    #     #     return get_type_str(type_die) + '&'
-    #     # else:
-    #     #     # reference without type?
-    #     #     return None
-    #     return None
-    #
-    # elif type_die.tag == 'DW_TAG_typedef':
-    #     return None
-
+        return 'const ' + type_str if type_str in ["int", "long", "char", "unsigned"] else None
     else:
         return None

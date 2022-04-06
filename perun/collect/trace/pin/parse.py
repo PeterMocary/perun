@@ -1,6 +1,6 @@
 from perun.profile.factory import Profile
 from perun.utils.log import msg_to_stdout
-from abc import ABC, abstractmethod;
+from abc import ABC, abstractmethod
 from enum import IntEnum
 
 
@@ -39,7 +39,7 @@ class RawDataEntry:
 
     # RTN_FORMAT also supports function arguments at the end
     RTN_FORMAT = ["granularity", 'location', 'tid', 'pid', 'timestamp', 'rtn_id', 'name']
-    BBL_FORMAT =  [*RTN_FORMAT, 'bbl_id']
+    BBL_FORMAT = [*RTN_FORMAT, 'bbl_id']
 
     def __init__(self, data: dict):
         self.name = data['name']
@@ -141,22 +141,24 @@ class FunctionCallRecord(Record):
         """ Creates suitable representation of the record data for the perun profile.
         :return dict: representation of data for perun profile
         """
+
         profile_data = {
-            'amount': self.time_delta,
-            'timestamp': self.entry_timestamp,
-            'call-order': self.call_order,
-            'uid': self.name,
-            'tid': self.tid,
-            'type': 'mixed',
-            'subtype': 'time delta',
             'workload': self.workload,
+            'subtype': 'time delta',
+            'type': 'mixed',
+            'tid': self.tid,
+            'uid': self.name,
+            'call-order': self.call_order,
+            'timestamp': self.entry_timestamp,
+            'amount': self.time_delta
         }
+
         if self.args:
             for index in self.args:
                 # Add arguments to the profile in following format:
-                # <index>_<arg-type>: <arg-value>
+                # <index>#<arg-type>: <arg-value>
                 arg = self.args[index]
-                profile_data[f'{index}_{arg[0]}'] = arg[1]
+                profile_data[f'arg{index}{arg[0]}'] = int(arg[1])
         return profile_data
 
     def __repr__(self) -> str:
@@ -189,7 +191,7 @@ class BasicBlockRecord(Record):
         return {
             'amount': self.time_delta,
             'timestamp': self.entry_timestamp,
-            'uid': "BBL|"+self.name + "|" + str(self.bbl_id),
+            'uid': "BBL#" + self.name + "#" + str(self.bbl_id),
             'tid': self.tid,
             'type': 'mixed',
             'subtype': 'time delta',
@@ -212,8 +214,8 @@ def parse_data(file: str, workload: str, function_table=None):
 
     # TODO: divide this function into more fundamental functions
 
-    records = [] #TODO: remove
-    not_paired_lines = [] #TODO: remove
+    records = []  # TODO: remove
+    not_paired_lines = []  # TODO: remove
 
     resources = []
     profile = Profile()
@@ -232,23 +234,29 @@ def parse_data(file: str, workload: str, function_table=None):
             # Parse a line of raw data
             line = line.strip('\n').split(';')
             # FIXME: Handle case where line[0] isn't either of the Granularity values
-            format = RawDataEntry.BBL_FORMAT if int(line[0]) == Granularity.BBL else RawDataEntry.RTN_FORMAT
+            current_format = RawDataEntry.BBL_FORMAT if int(line[0]) == Granularity.BBL else RawDataEntry.RTN_FORMAT
             data = {}
 
             # Store collected data in internal representation
-            for key, value in zip(format, line):
+            for key, value in zip(current_format, line):
                 data[key] = int(value) if key != 'name' else value
             data = RawDataEntry(data)
 
-            if function_table and len(line) > len(format): # There are additional function arguments
-                # Function argument types collected by pyelftools (or pygccxml, etc.) are stored in function_table
+            if function_table and len(line) > len(current_format): # There are additional function arguments
+                # Function argument types collected by pyelftools are stored in function_table
                 arg_types = function_table[data.name]
-                arg_values = line[len(format):] # Values of function arguments collected by PIN
+                arg_values = line[len(current_format):]  # Values of function arguments collected by PIN
 
                 # Create new representation of raw data and store it
                 arguments = {}
                 for index, value in zip(arg_types, arg_values):
-                    arguments[index] = (arg_types[index], value)
+
+                    if arg_types[index] == 'char *':  # Store only length of a string
+                        value = len(value)
+                    if arg_types[index] == 'char':
+                        value = ord(value)
+
+                    arguments[index] = (arg_types[index], int(value))
 
                 data.args = arguments
 
@@ -287,17 +295,17 @@ def parse_data(file: str, workload: str, function_table=None):
                     backlog.pop(data_entry_index)
                     resources.append(record.get_profile_data())
                     records.append(record)
-                else: #TODO: remove
+                else:  # TODO: remove
                     not_paired_lines.append(data)
             else:
                 # Stash entry point line, so that it can be easily found when complementary line (exit point) is loaded
-                # FIXME: Insert at the begining could be better for searching if its overhead isn't worse
+                # FIXME: Insert at the beginning could be better for searching if its overhead isn't worse
                 backlog.append(data)
 
-    msg_to_stdout('------------ RECORDS ------------', 2)
-    for record in records:
-        if record.name == "QuickSortBad":
-            msg_to_stdout(record, 2)
+    #msg_to_stdout('------------ RECORDS ------------', 2)
+    #for record in records:
+        #if record.name == "QuickSortBad":
+        #msg_to_stdout(record, 2)
 
     #not_paired_lines = not_paired_lines + backlog_rtn + backlog_bbl
     #msg_to_stdout('------------ NOT PAIRED ------------', 2)
@@ -309,12 +317,10 @@ def parse_data(file: str, workload: str, function_table=None):
     #msg_to_stdout(f'In backlog:\n\trtn: {len(backlog_rtn)}\n\tbbl: {len(backlog_bbl)}', 2)
 
     profile.update_resources({'resources': resources}, 'global')
-    #import pprint
+    #import pprint  # TODO: remove
     #pprint.pprint(resources)
     return profile
 
 # TODO: Unify the function/routine naming
 # TODO: Better debug messages in verbose mode
 # TODO: figure out that the perun profile doesn't match expected format
-# TODO: in case of string argument count its length and store it in profile
-

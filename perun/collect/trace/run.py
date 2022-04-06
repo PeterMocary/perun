@@ -159,7 +159,14 @@ def teardown(**kwargs):
               default=CollectEngine.default(),
               help='Sets the data collection engine to be used:\n'
                    ' - stap: the SystemTap framework\n'
-                   ' - ebpf: the eBPF framework')
+                   ' - ebpf: the eBPF framework\n'
+                   ' - pin: the Pin framework')
+@click.option('--collect-arguments', '-ca', is_flag=True, default=False,
+              help="Collect basic arguments of the functions.")
+@click.option('--collect-basic-blocks', '-cbb', is_flag=True, default=False,
+              help="Collect run-times of basic blocks.")
+@click.option('--probed', '-p', is_flag=True, default=False,
+              help="Perform collection using Pin's probed mode (can't be used when collection of basic blocks is enabled).")
 @click.option('--strategy', '-s', type=click.Choice(Strategy.supported()),
               default=Strategy.default(), required=True,
               help='Select strategy for probing the binary. See documentation for'

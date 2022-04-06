@@ -10,6 +10,7 @@ import collections
 import operator
 import itertools
 import click
+import re
 
 import perun.profile.convert as convert
 import perun.profile.query as query
@@ -121,13 +122,15 @@ class Profile(collections.MutableMapping):
 
         for resource in resource_list:
             persistent_properties = [
-                (key, value) for (key, value) in resource.items() if key not in Profile.collectable
+                (key, value) for (key, value) in resource.items() if key not in Profile.collectable and not re.match(r'^arg[0-9]+.*', key)
             ] + ctx_persistent_properties
+
             persistent_properties.extend(list(additional_params.items()))
             persistent_properties.sort(key=operator.itemgetter(0))
             collectable_properties = [
-                (key, value) for (key, value) in resource.items() if key in Profile.collectable
+                (key, value) for (key, value) in resource.items() if key in Profile.collectable or re.match(r'^arg[0-9]+.*', key)
             ] + ctx_collectable_properties
+
             resource_type = self.register_resource_type(
                 resource['uid'], tuple(persistent_properties)
             )
