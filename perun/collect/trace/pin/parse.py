@@ -158,7 +158,9 @@ class FunctionCallRecord(Record):
                 # Add arguments to the profile in following format:
                 # <index>#<arg-type>: <arg-value>
                 arg = self.args[index]
-                profile_data[f'arg{index}{arg[0]}'] = int(arg[1])
+                #profile_data[f'arg{index}{arg[0]}'] = int(arg[1])
+                # NOTE: ignoring the type of argument for now
+                profile_data[f'arg{index}'] = arg[1]
         return profile_data
 
     def __repr__(self) -> str:
@@ -256,7 +258,7 @@ def parse_data(file: str, workload: str, function_table=None):
                     if arg_types[index] == 'char':
                         value = ord(value)
 
-                    arguments[index] = (arg_types[index], int(value))
+                    arguments[index] = (arg_types[index], float(value))
 
                 data.args = arguments
 

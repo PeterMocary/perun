@@ -49,7 +49,7 @@ class PinEngine(engine.CollectEngine):
 r
         :return dict: a list of the USDT probe names per binary file
         """
-        msg_to_stdout('[Info]: Searching for available USDT probes.',2)
+        # NOTE: This function isn't needed by pin negine
         return {}
 
     def assemble_collect_program(self, **kwargs):
@@ -57,12 +57,12 @@ r
 
         :param kwargs: the required parameters
         """
-        # FIXME: this shoud be done only if collection of arguments is enabled
-        msg_to_stdout('[Info]: Scanning binary for functions and their arguments.',2)
-        # print(self.binary)
-        self.function_table = scan_binary.process_file(self.binary)
+        if kwargs['collect_arguments']:
+            msg_to_stdout('[Info]: Scanning binary for functions and their arguments.',2)
+            # print(self.binary)
+            self.function_table = scan_binary.process_file(self.binary)
 
-        msg_to_stdout('[Info]: Assebling the pintool.',2)
+        msg_to_stdout('[Info]: Assebling the pintool.', 2)
 
         pintool.assemble_pintool(self.pintool_src, self.pintool_makefile, self.function_table,
                                  kwargs['collect_arguments'], kwargs['collect_basic_blocks'], kwargs['probed'])
@@ -98,8 +98,8 @@ r
         :param kwargs: the required parameters
         """
         msg_to_stdout('[Info]: Cleaning up.', 2)
-        #utils.run_safely_external_command(f'make -C {get_tmp_directory()} clean-obj')
-        #super()._finalize_collect_files(['data', 'pintool_src', 'pintool_makefile'], config.keep_temps, config.zip_temps)
+        utils.run_safely_external_command(f'make -C {get_tmp_directory()} clean-obj')
+        super()._finalize_collect_files(['data', 'pintool_src', 'pintool_makefile'], config.keep_temps, config.zip_temps)
 
 
 
