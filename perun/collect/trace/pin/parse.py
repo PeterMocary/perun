@@ -46,10 +46,11 @@ class RawDataEntry:
         self.location = data['location']
         self.granularity = data['granularity']
         self.rtn_id = data['rtn_id']
-        self.bbl_id = data['bbl_id'] if self.granularity == Granularity.BBL else None
         self.tid = data['tid']
         self.pid = data['pid']
         self.timestamp = data['timestamp']
+
+        self.bbl_id = data['bbl_id'] if self.granularity == Granularity.BBL else None
         self.args = None
 
     def time_delta(self, other) -> int:
@@ -148,7 +149,7 @@ class FunctionCallRecord(Record):
             'type': 'mixed',
             'tid': self.tid,
             'uid': self.name,
-            'call-order': self.call_order,
+            #'call-order': self.call_order,
             'timestamp': self.entry_timestamp,
             'amount': self.time_delta
         }
@@ -156,23 +157,23 @@ class FunctionCallRecord(Record):
         if self.args:
             for index in self.args:
                 # Add arguments to the profile in following format:
-                # <index>#<arg-type>: <arg-value>
+                # <index>#<arg-type>#<arg-name>: <arg-value>
                 arg = self.args[index]
-                #profile_data[f'arg{index}{arg[0]}'] = int(arg[1])
-                # NOTE: ignoring the type of argument for now
-                profile_data[f'arg{index}'] = arg[1]
+                profile_data[f'arg{index}#{arg[0]}#{arg[1]}'] = arg[2]
         return profile_data
 
     def __repr__(self) -> str:
         # FIXME: order of output
-        return 'RTN:\n' \
-               f'args:           {self.args}\n'             \
-               f'function_name:  {self.name}\n'             \
-               f'delta:          {self.time_delta}\n'       \
-               f'function_id:    {self.rtn_id}\n'           \
-               f'tid:            {self.tid}\n'              \
-               f'entry:          {self.entry_timestamp}\n'  \
-               f'order:          {self.call_order}\n'
+        repr_str = ('RTN:\n'
+                    f'args:           {self.args}\n'
+                    f'function_name:  {self.name}\n'
+                    f'delta:          {self.time_delta}\n'
+                    f'function_id:    {self.rtn_id}\n'
+                    f'tid:            {self.tid}\n'
+                    f'entry:          {self.entry_timestamp}\n'
+                    f'order:          {self.call_order}\n')
+
+        return repr_str
 
 
 class BasicBlockRecord(Record):
@@ -246,19 +247,19 @@ def parse_data(file: str, workload: str, function_table=None):
 
             if function_table and len(line) > len(current_format): # There are additional function arguments
                 # Function argument types collected by pyelftools are stored in function_table
-                arg_types = function_table[data.name]
+                args_info = function_table[data.name]
                 arg_values = line[len(current_format):]  # Values of function arguments collected by PIN
 
                 # Create new representation of raw data and store it
                 arguments = {}
-                for index, value in zip(arg_types, arg_values):
+                for index, value in zip(args_info, arg_values):
 
-                    if arg_types[index] == 'char *':  # Store only length of a string
+                    if args_info[index][0] == 'char *':  # Store only length of a string
                         value = len(value)
-                    if arg_types[index] == 'char':
+                    if args_info[index][0] == 'char':
                         value = ord(value)
 
-                    arguments[index] = (arg_types[index], float(value))
+                    arguments[index] = [*args_info[index], float(value)]
 
                 data.args = arguments
 
@@ -301,22 +302,22 @@ def parse_data(file: str, workload: str, function_table=None):
                     not_paired_lines.append(data)
             else:
                 # Stash entry point line, so that it can be easily found when complementary line (exit point) is loaded
-                # FIXME: Insert at the beginning could be better for searching if its overhead isn't worse
-                backlog.append(data)
+                # Necessary to insert at the beginning of the array so that recursive functions are paired correctly
+                backlog.insert(0, data)
 
     #msg_to_stdout('------------ RECORDS ------------', 2)
     #for record in records:
         #if record.name == "QuickSortBad":
         #msg_to_stdout(record, 2)
 
-    #not_paired_lines = not_paired_lines + backlog_rtn + backlog_bbl
-    #msg_to_stdout('------------ NOT PAIRED ------------', 2)
-    #for not_paired_line in not_paired_lines:
-    #    msg_to_stdout(not_paired_line, 2)
+    # not_paired_lines = not_paired_lines + backlog_rtn + backlog_bbl
+    # msg_to_stdout('------------ NOT PAIRED ------------', 2)
+    # for not_paired_line in not_paired_lines:
+    #     msg_to_stdout(not_paired_line, 2)
 
-    #msg_to_stdout(f'Number of pairs: {len(records)}', 2)
-    #msg_to_stdout(f'Number of lines: {line_counter}', 2)
-    #msg_to_stdout(f'In backlog:\n\trtn: {len(backlog_rtn)}\n\tbbl: {len(backlog_bbl)}', 2)
+    # msg_to_stdout(f'Number of pairs: {len(records)}', 2)
+    # msg_to_stdout(f'Number of lines: {line_counter}', 2)
+    # msg_to_stdout(f'In backlog:\n\trtn: {len(backlog_rtn)}\n\tbbl: {len(backlog_bbl)}', 2)
 
     profile.update_resources({'resources': resources}, 'global')
     #import pprint  # TODO: remove

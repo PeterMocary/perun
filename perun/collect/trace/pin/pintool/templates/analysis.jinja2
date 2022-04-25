@@ -36,7 +36,7 @@ VOID {% if location==0 %}bbl_analysis_before{% else %}bbl_analysis_after{% endif
 
 {% if collect_arguments %}
 {% for function_name in function_table %}
-VOID rtn_analysis_before_{{ function_name }}(RoutineInfo* routineInfo{% if not probed %}, THREADID tid{% endif %}{% for arg_index in function_table[function_name] %}, {{ function_table[function_name][arg_index] }} *arg{{ arg_index }}{% endfor %}){
+VOID rtn_analysis_before_{{ function_name }}(RoutineInfo* routineInfo{% if not probed %}, THREADID tid{% endif %}{% for arg_index in function_table[function_name] %}, {{ function_table[function_name][arg_index][0] }} *arg{{ arg_index }}{% endfor %}){
     UINT64 timeStamp;
     PIN_MutexLock(&outFileLock);
     OS_Time(&timeStamp);

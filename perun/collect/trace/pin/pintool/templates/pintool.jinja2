@@ -12,10 +12,6 @@ using std::ofstream;
 PIN_MUTEX outFileLock;
 std::ofstream outFile;
 
-{% if bbl %}
-UINT64 bbl_counter = 0;
-{% endif %}
-
 enum Granularity { G_RTN, G_BBL };
 enum Location { L_BEFORE, L_AFTER };
 

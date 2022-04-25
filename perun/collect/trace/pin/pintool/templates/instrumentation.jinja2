@@ -6,7 +6,7 @@ VOID ImageHandler(IMG img, VOID *v) {
             if (RTN_Valid(rtn) && !RTN_IsDynamic(rtn) && !RTN_IsArtificial(rtn){% if probed %} && RTN_IsSafeFroProbedInsertion(rtn){% endif %}) {
 #}
 VOID Routine(RTN rtn, VOID* v){
-    if (IMG_IsMainExecutable(SEC_Img(RTN_Sec(rtn))) && RTN_Valid(rtn) && !RTN_IsDynamic(rtn) && !RTN_IsArtificial(rtn){% if probed %} && RTN_IsSafeForProbedInsertion(rtn){% endif %}) {
+    if (IMG_IsMainExecutable(SEC_Img(RTN_Sec(rtn))) && RTN_Valid(rtn){% if not probed %} && !RTN_IsDynamic(rtn){% endif %} && !RTN_IsArtificial(rtn){% if probed %} && RTN_IsSafeForProbedInsertion(rtn){% endif %}) {
                 // Store information about routine for the output
                 RoutineInfo* rc = new RoutineInfo;
                 rc->name = PIN_UndecorateSymbolName(RTN_Name(rtn), UNDECORATION_NAME_ONLY);
