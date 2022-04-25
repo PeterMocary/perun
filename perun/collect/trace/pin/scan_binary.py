@@ -10,7 +10,6 @@ def process_file(filename: str) -> dict:
         :param str filename: binary with DWARF debug info one wants to analyse
         :return dict: dictionary with names and parameter types of functions
     """
-    print('Processing file:', filename)
     with open(filename, 'rb') as f:
         elffile = ELFFile(f)
 
@@ -26,8 +25,8 @@ def process_file(filename: str) -> dict:
             top_DIE = CU.get_top_DIE()
             # print('name=%s' % top_DIE.get_full_path())
             die_func_info(top_DIE, func_table)
-    import pprint  # TODO: remove
-    pprint.pprint(func_table)
+    #import pprint  # TODO: remove
+    #pprint.pprint(func_table)
     return func_table
 
 
@@ -48,10 +47,16 @@ def die_func_info(die, func_table: dict):
                 if subprogram_child.tag == 'DW_TAG_formal_parameter':
                     param_index += 1
                     type_die = subprogram_child.get_DIE_from_attribute('DW_AT_type')
-                    type_name = get_type_str(type_die)
-                    if not type_name:
+                    type_in_str = get_type_str(type_die)
+                    if not type_in_str:
                         continue
-                    parameters[str(param_index)] = type_name
+
+                    try:
+                        arg_name = bytes2str(subprogram_child.attributes['DW_AT_name'].value)
+                    except KeyError:
+                        arg_name = 'No name in DWARF'
+
+                    parameters[str(param_index)] = (type_in_str, arg_name)
 
             if parameters != {}:
                 func_table[function_name] = parameters
@@ -63,15 +68,14 @@ def get_type_str(type_die):
         :param DIE type_die: debugging information entry containing information about type
         :return: type in str or None if the type isn't one of selected types
     """
+
+    supported_basic_types = ["int", "char", "float", "double", "_Bool"]
     if type_die.tag == 'DW_TAG_base_type':
         type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
-        # if type_str == "wchar_t":
-        #     return None
-
-        if type_str in ["int", "long", "char", "unsigned"]:  # bool is "_Bool"
-            return type_str
-        else:
-            return None
+        for supported_basic_type in supported_basic_types:
+            if supported_basic_type in type_str:
+                return type_str
+        return None
 
     elif type_die.tag == 'DW_TAG_pointer_type':
         if 'DW_AT_type' in type_die.attributes:
@@ -91,6 +95,10 @@ def get_type_str(type_die):
         except KeyError:
             return None
         type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
-        return 'const ' + type_str if type_str in ["int", "long", "char", "unsigned"] else None
+
+        for supported_basic_type in supported_basic_types:
+            if supported_basic_type in type_str:
+                return 'const ' + type_str
+        return None
     else:
         return None
