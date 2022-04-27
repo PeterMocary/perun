@@ -1,3 +1,6 @@
+""" Scatter plot of dependence of function run--time on values of its arguments
+"""
+
 import click
 import re
 
@@ -9,7 +12,6 @@ import matplotlib.pyplot as plt
 
 
 def _get_resource_collectables_merged_template(resource):
-
     merged_resource_template = {}
     for key in resource:
         if key in Profile.collectable or re.match(r'^arg[0-9]+.*', key):

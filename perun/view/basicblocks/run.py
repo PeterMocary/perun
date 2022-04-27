@@ -1,17 +1,8 @@
-"""TODO
+"""Sunburst graph representing the basic blocks and function run-times along with execution counts.
 """
 
 import click
 
-from bokeh.io import show
-from bokeh.models import (
-    ColumnDataSource,
-    HoverTool,
-    LogColorMapper
-)
-
-from bokeh.sampledata.us_counties import data as counties_data
-from bokeh.sampledata.unemployment import data as unemployment
 from perun.profile.factory import pass_profile
 import bokeh.palettes as palettes
 from bokeh.plotting import figure, show, output_file
@@ -22,11 +13,10 @@ import perun.profile.convert as convert
 from bisect import insort, bisect
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 
 def get_functions_data(data, top_basic_blocks=None, sort_by='time'):
+    """Converts data from dataframe into records about functions instead and filters basic blocks."""
 
     function_data = data[~data['uid'].str.match(r'^BBL#.*#[0-9]+')]
     function_names = function_data.uid.unique()
@@ -54,18 +44,18 @@ def get_functions_data(data, top_basic_blocks=None, sort_by='time'):
                 insort(new_data[function_name]['bbl_times'], sum(time_deltas))
                 new_data[function_name]['bbl_execs'].insert(insertion_idx, len(time_deltas))
 
+        # overwrite the time of function with exclusively spent time in the function without other function calls inside
+        new_data[function_name]['func_time'] = sum(new_data[function_name]['bbl_times'])
+
         if top_basic_blocks:
             new_data[function_name]['bbl_times'] = new_data[function_name]['bbl_times'][:top_basic_blocks]
             new_data[function_name]['bbl_execs'] = new_data[function_name]['bbl_execs'][:top_basic_blocks]
-
-
-        # overwrite the time of function with exclusively spent time in the function without other function calls inside
-        new_data[function_name]['func_time'] = sum(new_data[function_name]['bbl_times'])
 
     return new_data
 
 
 def get_data(profile, top_functions, top_basic_blocks, sort_by):
+    """Prepares data for sunburst plot and returns them as dataframes."""
 
     data = convert.resources_to_pandas_dataframe(profile)
 
@@ -105,6 +95,7 @@ def get_data(profile, top_functions, top_basic_blocks, sort_by):
 
 
 def create_df_from_functions_data(functions_data, time=False, main_duration=None):
+    """ Converts the function data into a data frame format suitable for sunburst plot"""
 
     # unify counts of basic blocks with zeroes so that dataframe creation is possible
     max_bbls = 0
@@ -157,6 +148,8 @@ def create_df_from_functions_data(functions_data, time=False, main_duration=None
 
 
 def sunburst(df, type='time'):
+    """ Creates a sunburst like plot. Inspired by: http://docs.bokeh.org/en/0.12.6/docs/gallery/burtin.html
+    """
     print(df)
     bbl_columns = df.columns[2:]
 
@@ -271,7 +264,7 @@ def sunburst(df, type='time'):
 @click.command()
 @click.option('--top-functions', '-tf', type=int, default=None,
               help='Limits the functions displayed to specified number to reduce clutter.')
-@click.option('--top-basic-blocks', '-tbb', type=int, default=3,
+@click.option('--top-basic-blocks', '-tbb', type=int, default=7,
               help='Limits the basic blocks displayed to specified number to reduce clutter.')
 @click.option('--sort-by', '-sb', type=str, default='time',
               help='Decide if the top functions/basic blocks should be sorted by execution time (time) or number of executions (execs)')

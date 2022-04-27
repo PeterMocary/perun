@@ -70,7 +70,6 @@ r
         #print(f'make -C {get_tmp_directory()}')
         utils.run_safely_external_command(f'make -C {get_tmp_directory()}')
 
-
     def collect(self, config, **kwargs):
         """ Collect the raw performance data using the assembled collection program and other
         parameters.
@@ -98,8 +97,8 @@ r
         :param kwargs: the required parameters
         """
         msg_to_stdout('[Info]: Cleaning up.', 2)
-        utils.run_safely_external_command(f'make -C {get_tmp_directory()} clean-obj')
-        super()._finalize_collect_files(['data', 'pintool_src', 'pintool_makefile'], config.keep_temps, config.zip_temps)
+        #utils.run_safely_external_command(f'make -C {get_tmp_directory()} clean-obj')
+        #super()._finalize_collect_files(['data', 'pintool_src', 'pintool_makefile'], config.keep_temps, config.zip_temps)
 
 
 
