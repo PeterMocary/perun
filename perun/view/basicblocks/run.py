@@ -16,7 +16,14 @@ import pandas as pd
 
 
 def get_functions_data(data, top_basic_blocks=None, sort_by='time'):
-    """Converts data from dataframe into records about functions instead and filters basic blocks."""
+    """Converts data from dataframe into records about functions instead and filters basic blocks.
+
+    :param DataFrame data: data from which to create function information
+    :param int top_basic_blocks: select how many top basic blocks to filter (optional)
+    :param string sort_by: select sorting method time/execs
+
+    :returns dict new_data: dictionary representation of filtered data
+    """
 
     function_data = data[~data['uid'].str.match(r'^BBL#.*#[0-9]+')]
     function_names = function_data.uid.unique()
@@ -55,7 +62,15 @@ def get_functions_data(data, top_basic_blocks=None, sort_by='time'):
 
 
 def get_data(profile, top_functions, top_basic_blocks, sort_by):
-    """Prepares data for sunburst plot and returns them as dataframes."""
+    """Prepares data for sunburst plot and returns them as dataframes.
+
+    :param Profile  profile: profile from which to extract data
+    :param int top_functions: select how many top functions to include in data
+    :param int top_basic_blocks: select how many top basic blocks to include in data
+    :param string sort_by: select method of sorting time/execs
+
+    :returns DataFrame, DataFrame dataframes: dataframes containing the filtered data for two different sunbursts
+    """
 
     data = convert.resources_to_pandas_dataframe(profile)
 
@@ -95,7 +110,14 @@ def get_data(profile, top_functions, top_basic_blocks, sort_by):
 
 
 def create_df_from_functions_data(functions_data, time=False, main_duration=None):
-    """ Converts the function data into a data frame format suitable for sunburst plot"""
+    """ Converts the function data into a data frame format suitable for sunburst plot
+
+    :param dict functions_data: dict containing filtered information about functions
+    :param bool time: flag that decides what df is being created time/execs
+    :param int main_duration: selects the main duration from which are the percentages calculated
+
+    :returns DataFrame df: dataframe with data about functions provided
+    """
 
     # unify counts of basic blocks with zeroes so that dataframe creation is possible
     max_bbls = 0
@@ -149,6 +171,11 @@ def create_df_from_functions_data(functions_data, time=False, main_duration=None
 
 def sunburst(df, type='time'):
     """ Creates a sunburst like plot. Inspired by: http://docs.bokeh.org/en/0.12.6/docs/gallery/burtin.html
+
+    :param DataFrame df: dataframe containing information for the sunburst in correct format
+    :param string type: type of sunburst graph time/execs
+
+    :returns figure p: figure with the created sunburst
     """
     print(df)
     bbl_columns = df.columns[2:]
@@ -177,7 +204,7 @@ def sunburst(df, type='time'):
     # Prepare figure
     p = figure(plot_width=width, plot_height=height, title="",
                x_axis_type=None, y_axis_type=None,
-               x_range=(-510, 510), y_range=(-510, 510),
+               x_range=(-510, 520), y_range=(-510, 520),
                min_border=0, outline_line_color="black",
                background_fill_color="#f9f5d7", border_fill_color="#f9f5d7",
                toolbar_sticky=False)
@@ -212,7 +239,7 @@ def sunburst(df, type='time'):
     p.circle(0, 0, radius=radii[1:], fill_color=None, line_color="#282828")
     p.circle(0, 0, radius=radii[0], fill_color=None, line_color="#282828")
     p.text(0, radii[:-1], [str(int(r))+"%" for r in labels],
-           text_font_size="8pt", text_align="center", text_baseline="middle")
+           text_font_size="9pt", text_align="center", text_baseline="middle")
 
     # radial axes
     p.annular_wedge(0, 0, inner_radius - 10, outer_radius + 10,
@@ -224,7 +251,7 @@ def sunburst(df, type='time'):
     label_angle = np.array(-big_angle / 2 + angles)
     label_angle[label_angle < -np.pi / 2] += np.pi  # easier to read labels on the left side
     p.text(xr, yr, df.function_name, angle=label_angle,
-           text_font_size="10pt", text_font_style="bold", text_align="center", text_baseline="middle")
+           text_font_size="11pt", text_font_style="bold", text_align="center", text_baseline="middle")
 
     # Function color labels
     # fclx_circle = [-40, -40, -40, -40, -40, 30, 30, 30, 30, 30]
@@ -239,9 +266,9 @@ def sunburst(df, type='time'):
 
     p.rect(fclx_rect, fcly_rect, width=20, height=15,  color=list(percentage_color.values()))
     p.text([-100, 80], [-20, -20], text=['0%', '100%'], text_font_size='10px', text_align='left', text_baseline='middle')
-    heading_text = "Exclusive time spent in function" if type == 'time' else "Function calls"
+    heading_text = "Function time" if type == 'time' else "Function executions"
     p.text(-100, 15, text=[heading_text],
-           text_font_size="9pt", text_align="left")
+           text_font_size="10pt", text_align="left")
 
     # Basic blocks color labels
     bblx_circle = [outer_radius+60]*len(bbl_color)
@@ -250,14 +277,14 @@ def sunburst(df, type='time'):
     p.rect(bblx_circle, bbly, width=15, height=15,
            color=list(bbl_color.values()))
     p.text(bblx_text, bbly, text=[f'TOP{i+1}' for i in range(len(bbl_color))],
-           text_font_size="9pt", text_align="left", text_baseline="middle")
+           text_font_size="10pt", text_align="left", text_baseline="middle")
 
     p.text(outer_radius+45, 20*(len(bbl_color)/2+1)-10, text=["Basic Blocks"],
-           text_font_size="9pt", text_align="left")
+           text_font_size="10pt", text_align="left")
 
-    heading_text = "Exclusive time spent in basic block" if type == 'time' else 'Basic block calls'
+    heading_text = "Basic block time" if type == 'time' else 'Basic block executions'
     p.text(0, outer_radius+2, text=[heading_text],
-           text_font_size="9pt", text_align="center")
+           text_font_size="10pt", text_align="center")
 
     return p
 

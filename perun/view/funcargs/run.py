@@ -12,6 +12,12 @@ import matplotlib.pyplot as plt
 
 
 def _get_resource_collectables_merged_template(resource):
+    """ Creates a template for resource that are collectable for further use
+
+    :param  dict resource: the resource for which to create template
+
+    :returns dict merged_resource_template: dictionary template from resource's collectables
+    """
     merged_resource_template = {}
     for key in resource:
         if key in Profile.collectable or re.match(r'^arg[0-9]+.*', key):
@@ -21,6 +27,11 @@ def _get_resource_collectables_merged_template(resource):
 
 
 def _merge_collectable_resources(dest: dict, src: dict):
+    """ Combines resources that are collectable - have different values for a key in different executions
+
+    :param dict dest: appends the resources to this dict
+    :param dict src: takes resources from this dict
+    """
 
     for key in src:
         if key in Profile.collectable or re.match(r'^arg[0-9]+.*', key):
@@ -28,6 +39,12 @@ def _merge_collectable_resources(dest: dict, src: dict):
 
 
 def get_function_dataframes(profile):
+    """ Converts a profile to a dictionary containing all the information about functions.
+
+    :param Profile profile: Profile from which to gather the information about functions
+
+    :returns dict unique_resources: dictionary of functions with their collected data
+    """
 
     unique_resources = {}
 
@@ -49,7 +66,12 @@ def get_function_dataframes(profile):
 
 
 def _get_column_keys_for_args(function_data: pd.DataFrame):
+    """ Retrieves argument keys from selected dataframe
 
+    :param DataFrame function_data: Dataframe from which to retrieve argument keys
+
+    :returns list args: list of argument keys from the selected dataframe
+    """
     args = []
     for column_name in function_data.columns:
         if re.match(r'^arg[0-9]+.*', column_name):
@@ -65,7 +87,7 @@ def _get_column_keys_for_args(function_data: pd.DataFrame):
               help="Select a function (by its name) which arguments to plot.")
 @pass_profile
 def funcargs(profile, squash, function_name):
-
+    sns.set(font_scale=1.0)
     function_data = get_function_dataframes(profile)
     function_data_with_args = {}
     if function_name and function_name not in function_data.keys():
@@ -86,6 +108,14 @@ def funcargs(profile, squash, function_name):
     for function_name, function_dataframe in function_data_with_args.items():
         column_keys = _get_column_keys_for_args(function_dataframe)
 
+        # SHOWCASES THE STATE WITHOUT ARGS AVAILABLE
+        # fig_without_args = plt.figure()
+        # ax = fig_without_args.add_subplot()
+        # x_vec = function_dataframe.index + 1
+        # without_args = sns.scatterplot(ax=ax, data=function_dataframe, x=x_vec, y='amount')
+        # without_args.set(ylabel='Function run-time [μs]', xlabel='Execution')
+        # fig_without_args.suptitle(function_name)
+
         subplots_cnt = 1 if squash else len(column_keys)
         fig, axes = plt.subplots(1, subplots_cnt, sharey=True)
         fig.suptitle(function_name)
@@ -93,7 +123,7 @@ def funcargs(profile, squash, function_name):
         if squash:
             for col_name in column_keys:
                 a = sns.scatterplot(data=function_dataframe, x=col_name, y='amount')
-            a.set(ylabel='function run-time [μs]', xlabel='argument value')
+            a.set(ylabel='Function run-time [μs]', xlabel='Argument value')
             labels = []
             for col_name in column_keys:
                 arg_type_and_name = col_name.split('#')[1:]
@@ -107,17 +137,18 @@ def funcargs(profile, squash, function_name):
         elif len(column_keys) == 1:
             a = sns.scatterplot(data=function_dataframe, x=column_keys[0], y='amount')
             arg_type_and_name = column_keys[0].split('#')[1:]
-            xlabel = 'argument value'
+            xlabel = 'Argument value'
             if arg_type_and_name[0] == 'char *':
-                xlabel = 'string length'
-            a.set(ylabel='function run-time [μs]', xlabel=xlabel, title=' '.join(arg_type_and_name))
+                xlabel = 'String length'
+            a.set(ylabel='Function run-time [μs]', xlabel=xlabel, title=' '.join(arg_type_and_name))
+
         else:
             for col, col_name in enumerate(column_keys):
                 arg_type_and_name = col_name.split('#')[1:]
-                xlabel = 'argument value'
+                xlabel = 'Argument value'
                 if arg_type_and_name[0] == 'char *':
-                    xlabel = 'string length'
+                    xlabel = 'String length'
                 a = sns.scatterplot(ax=axes[col], data=function_dataframe, x=col_name, y="amount")
-                a.set(ylabel="function run-time [μs]", xlabel=xlabel, title=" ".join(arg_type_and_name))
+                a.set(ylabel="Function run-time [μs]", xlabel=xlabel, title=" ".join(arg_type_and_name))
 
     plt.show()
