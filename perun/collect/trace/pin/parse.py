@@ -1,5 +1,3 @@
-from perun.profile.factory import Profile
-from perun.utils.log import msg_to_stdout
 from abc import ABC, abstractmethod
 from enum import IntEnum
 
@@ -59,7 +57,6 @@ class RawDataEntry:
         :param RawDataEntry other: the data entry complementary to self
         :return int: time delta of the complementary entries
         """
-        # FIXME: Exception when the entries aren't a pair?
         return abs(self.timestamp - other.timestamp)
 
     def is_located_before(self) -> bool:
@@ -86,15 +83,15 @@ class RawDataEntry:
         return False
 
     def __repr__(self) -> str:
-        return f"RAW:\n"                                \
-               f"function_name: {self.name}\n"          \
-               f"granularity: {self.granularity}\n"     \
-               f"location: {self.location}\n"           \
-               f"function_id: {self.rtn_id}\n"          \
-               f"basic_block_id: {self.bbl_id}\n"       \
-               f"tid: {self.tid}\n"                     \
-               f"pid: {self.pid}\n"                     \
-               f"timestamp: {self.timestamp}\n"
+        return ("RAW:\n"
+                f"function_name: {self.name}\n"
+                f"granularity: {self.granularity}\n"
+                f"location: {self.location}\n"
+                f"function_id: {self.rtn_id}\n"
+                f"basic_block_id: {self.bbl_id}\n"
+                f"tid: {self.tid}\n"
+                f"pid: {self.pid}\n"
+                f"timestamp: {self.timestamp}\n")
 
 
 class Record(ABC):
@@ -163,10 +160,9 @@ class FunctionCallRecord(Record):
         return profile_data
 
     def __repr__(self) -> str:
-        # FIXME: order of output
         repr_str = ('RTN:\n'
-                    f'args:           {self.args}\n'
                     f'function_name:  {self.name}\n'
+                    f'args:           {self.args}\n'
                     f'delta:          {self.time_delta}\n'
                     f'function_id:    {self.rtn_id}\n'
                     f'tid:            {self.tid}\n'
@@ -202,26 +198,18 @@ class BasicBlockRecord(Record):
         }
 
     def __repr__(self) -> str:
-        return 'BBL:\n'                                      \
-               f'function_name:  {self.name}\n'              \
-               f'function_id:    {self.rtn_id}\n'            \
-               f'block_id:       {self.bbl_id}\n'            \
-               f'tid:            {self.tid}\n'               \
-               f'delta:          {self.time_delta}\n'        \
-               f'entry:          {self.entry_timestamp}\n'
+        return ('BBL:\n'
+                f'function_name:  {self.name}\n'
+                f'function_id:    {self.rtn_id}\n'
+                f'block_id:       {self.bbl_id}\n'
+                f'tid:            {self.tid}\n'
+                f'delta:          {self.time_delta}\n'
+                f'entry:          {self.entry_timestamp}\n')
 
 
 def parse_data(file: str, workload: str, function_table=None):
     """ Parses the raw data output from pin and creates Records from it which are then converted to perun profile
     """
-
-    # TODO: divide this function into more fundamental functions
-
-    records = []  # TODO: remove
-    not_paired_lines = []  # TODO: remove
-
-    resources = []
-    profile = Profile()
 
     with open(file, 'r') as raw_data:
 
@@ -236,7 +224,6 @@ def parse_data(file: str, workload: str, function_table=None):
 
             # Parse a line of raw data
             line = line.strip('\n').split(';')
-            # FIXME: Handle case where line[0] isn't either of the Granularity values
             current_format = RawDataEntry.BBL_FORMAT if int(line[0]) == Granularity.BBL else RawDataEntry.RTN_FORMAT
             data = {}
 
@@ -296,34 +283,8 @@ def parse_data(file: str, workload: str, function_table=None):
                                                   bbl_id=data.bbl_id)
 
                     backlog.pop(data_entry_index)
-                    resources.append(record.get_profile_data())
-                    records.append(record)
-                else:  # TODO: remove
-                    not_paired_lines.append(data)
+                    yield record.get_profile_data()
             else:
                 # Stash entry point line, so that it can be easily found when complementary line (exit point) is loaded
                 # Necessary to insert at the beginning of the array so that recursive functions are paired correctly
                 backlog.insert(0, data)
-
-    #msg_to_stdout('------------ RECORDS ------------', 2)
-    #for record in records:
-        #if record.name == "QuickSortBad":
-        #msg_to_stdout(record, 2)
-
-    # not_paired_lines = not_paired_lines + backlog_rtn + backlog_bbl
-    # msg_to_stdout('------------ NOT PAIRED ------------', 2)
-    # for not_paired_line in not_paired_lines:
-    #     msg_to_stdout(not_paired_line, 2)
-
-    # msg_to_stdout(f'Number of pairs: {len(records)}', 2)
-    # msg_to_stdout(f'Number of lines: {line_counter}', 2)
-    # msg_to_stdout(f'In backlog:\n\trtn: {len(backlog_rtn)}\n\tbbl: {len(backlog_bbl)}', 2)
-
-    profile.update_resources({'resources': resources}, 'global')
-    #import pprint  # TODO: remove
-    #pprint.pprint(resources)
-    return profile
-
-# TODO: Unify the function/routine naming
-# TODO: Better debug messages in verbose mode
-# TODO: figure out that the perun profile doesn't match expected format

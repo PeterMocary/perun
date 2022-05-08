@@ -2,7 +2,7 @@ from elftools.elf.elffile import ELFFile
 from elftools.common.py3compat import bytes2str
 from elftools.dwarf.die import DIE
 
-from perun.utils.exceptions import InvalidBinaryException
+from perun.utils.exceptions import InvalidBinaryException, PinBinnaryScanUnsuccessful
 
 
 def process_file(filename: str) -> dict:
@@ -22,11 +22,13 @@ def process_file(filename: str) -> dict:
         func_table = {}
         for CU in dwarfinfo.iter_CUs():
             # Start with the top DIE, the root for this CU's DIE tree
-            top_DIE = CU.get_top_DIE()
+            try:
+                top_DIE = CU.get_top_DIE()
+            except Exception:
+                raise PinBinnaryScanUnsuccessful
+
             # print('name=%s' % top_DIE.get_full_path())
             die_func_info(top_DIE, func_table)
-    #import pprint  # TODO: remove
-    #pprint.pprint(func_table)
     return func_table
 
 
@@ -63,7 +65,6 @@ def die_func_info(die, func_table: dict):
 
 
 def get_type_str(type_die):
-
     """ Extracts type from dwarf format to string.
         :param DIE type_die: debugging information entry containing information about type
         :return: type in str or None if the type isn't one of selected types

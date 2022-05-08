@@ -21,6 +21,7 @@ import perun.utils.log as stdout
 import perun.utils.metrics as metrics
 import perun.utils as utils
 from perun.utils.structs import CollectStatus
+from perun.profile.factory import Profile
 
 
 def before(executable, **kwargs):
@@ -117,7 +118,13 @@ def after(**kwargs):
     metrics.add_metric('data_size', data_size)
     WATCH_DOG.info('Raw data file size: {}'.format(utils.format_file_size(data_size)))
 
-    kwargs['profile'] = kwargs['config'].engine.transform(**kwargs)
+    #kwargs['profile'] = kwargs['config'].engine.transform(**kwargs)
+    kwargs['profile'] = Profile()
+    kwargs['profile'].update_resources(
+        {'resources': list(kwargs['config'].engine.transform(**kwargs))}, 'global'
+    )
+
+
 
     WATCH_DOG.info('Data processing finished.')
     stdout.done('\n\n')
