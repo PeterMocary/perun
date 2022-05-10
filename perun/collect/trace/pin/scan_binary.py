@@ -40,7 +40,10 @@ def die_func_info(die, func_table: dict):
     """
     for child in die.iter_children():
         if child.tag == 'DW_TAG_subprogram':
-            function_name_attribute = child.attributes['DW_AT_name']
+            try:
+                function_name_attribute = child.attributes['DW_AT_name']
+            except KeyError:
+                continue
             function_name = bytes2str(function_name_attribute.value)
 
             parameters = {}
@@ -93,9 +96,9 @@ def get_type_str(type_die):
     elif type_die.tag == 'DW_TAG_const_type':
         try:
             type_die = type_die.get_DIE_from_attribute('DW_AT_type')
+            type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
         except KeyError:
             return None
-        type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
 
         for supported_basic_type in supported_basic_types:
             if supported_basic_type in type_str:
