@@ -60,10 +60,8 @@ VOID Trace(TRACE trace, VOID *v) {
         RTN_IsDynamic(TRACE_Rtn(trace)) ||
         RTN_IsArtificial(TRACE_Rtn(trace))) {
         //NOTE: Sometimes is the routine invalid
-        std::cout << "invalid routine" << endl;
         return;
     } else if ((IMG_Valid(SEC_Img(RTN_Sec(TRACE_Rtn(trace)))) && !IMG_IsMainExecutable(SEC_Img(RTN_Sec(TRACE_Rtn(trace)))))) {
-        std::cout << "invalid img" << endl;
         return;
     }
 
