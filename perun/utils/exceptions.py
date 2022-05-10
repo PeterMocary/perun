@@ -419,7 +419,7 @@ class PinBinaryInstrumentationFailed(Exception):
 
     def __init__(self):
         super().__init__()
-        self.msg = "PIN failed to instrument the program!"
+        self.msg = "Failed to instrument the program!"
 
     def __str__(self):
         return self.msg
