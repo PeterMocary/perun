@@ -1,5 +1,6 @@
 """ The SystemTap engine implementation.
 """
+import subprocess
 
 import perun.collect.trace.collect_engine as engine
 from perun.utils.log import msg_to_stdout
@@ -10,7 +11,7 @@ import perun.utils as utils
 import perun.collect.trace.pin.parse as parse
 import perun.collect.trace.pin.scan_binary as scan_binary
 from os import environ
-from perun.utils.exceptions import PinUnspecifiedPinRoot
+from perun.utils.exceptions import PinUnspecifiedPinRoot, PinBinaryInstrumentationFailed
 
 
 class PinEngine(engine.CollectEngine):
@@ -67,8 +68,11 @@ class PinEngine(engine.CollectEngine):
         :param Configuration config: the configuration object
         """
         msg_to_stdout('[Info]: Collecting the performance data.', 2)
-        utils.run_safely_external_command(
-            f'pin -t {get_tmp_directory()}/obj-intel64/pintool.so -o {self.data} -- {config.executable}')
+        try:
+            utils.run_safely_external_command(
+                f'pin -t {get_tmp_directory()}/obj-intel64/pintool.so -o {self.data} -- {config.executable}')
+        except subprocess.CalledProcessError:
+            raise PinBinaryInstrumentationFailed
 
     def transform(self, config, **kwargs):
         """ Transform the raw performance data into a resources as used in the profiles.
