@@ -304,7 +304,7 @@ class InvalidBinaryException(Exception):
         super().__init__("")
         self.binary = binary
         self.msg = ("Supplied binary parameter '{0}' does not exist, or is not an "
-                    "executable ELF file or doesn't have DWARF info.".format(self.binary))
+                    "executable ELF file or doesn't include proper DWARF info.".format(self.binary))
 
     def __str__(self):
         return self.msg
@@ -409,6 +409,17 @@ class PinBinnaryScanUnsuccessful(Exception):
         super().__init__("")
         self.msg = "Couldn't read the DWARF debug info, please ensure that the binary is compiled with gcc<=7.5 and " \
                    "-gdwarf option."
+
+    def __str__(self):
+        return self.msg
+
+
+class PinBinaryInstrumentationFailed(Exception):
+    """Raised when PIN fails to instrument program"""
+
+    def __init__(self, msg):
+        super().__init__()
+        self.msg = "PIN failed to instrument the program!"
 
     def __str__(self):
         return self.msg
