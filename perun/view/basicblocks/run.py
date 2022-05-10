@@ -78,6 +78,9 @@ def get_data(profile, top_functions, top_basic_blocks, sort_by):
     data.drop(columns=['type', 'subtype', 'time', 'workload', 'tid', 'snapshots'], inplace=True, axis=1)
 
     # get start and duration of main functions for data filtering
+    if data.loc[data['uid'] == 'main'].empty:
+        raise Exception("Couldn't create graphs, not enough data. Profile doesn't include main function.")
+
     main_start = data.loc[data['uid'] == 'main'].timestamp.values[0]
     main_duration = data.loc[data['uid'] == 'main'].amount.values[0]
     main_end = main_start + main_duration
