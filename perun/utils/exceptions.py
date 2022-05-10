@@ -417,7 +417,7 @@ class PinBinnaryScanUnsuccessful(Exception):
 class PinBinaryInstrumentationFailed(Exception):
     """Raised when PIN fails to instrument program"""
 
-    def __init__(self, msg):
+    def __init__(self):
         super().__init__()
         self.msg = "PIN failed to instrument the program!"
 
