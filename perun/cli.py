@@ -30,7 +30,7 @@ command line arguments. The intefrace can be broken into several groups:
     for thorough description of API of individual views.
 
     5. **Utility commands**: group of commands used for developing Perun
-    or for maintenance of the Perun instances. Currently this group contains
+    or for maintenance of the Perun instances. Currently, this group contains
     ``create`` command for faster creation of new modules.
 
 Graphical User Interface is currently in development and hopefully will extend
@@ -38,12 +38,15 @@ the flexibility of Perun's usage.
 
 .. _Click: http://click.pocoo.org/5/
 """
+from __future__ import annotations
 
 import os
 import pkgutil
 import sys
 
 import click
+
+from typing import Optional, Any
 
 import perun.collect
 import perun.postprocess
@@ -69,9 +72,9 @@ from perun.utils.exceptions import UnsupportedModuleException, UnsupportedModule
     NotPerunRepositoryException, IncorrectProfileFormatException, EntryNotFoundException, \
     MissingConfigSectionException, ExternalEditorErrorException
 from perun.utils.structs import Executable
+from perun.profile.factory import Profile
 
 
-__author__ = 'Tomas Fiedor'
 DEV_MODE = False
 
 
@@ -95,7 +98,13 @@ DEV_MODE = False
               callback=cli_helpers.configure_metrics,
               help='Enables the collection of metrics into the given temp file'
                    '(first argument) under the supplied ID (second argument).')
-def cli(dev_mode=False, no_color=False, verbose=0, no_pager=False, **_):
+def cli(
+        dev_mode: bool = False,
+        no_color: bool = False,
+        verbose: int = 0,
+        no_pager: bool = False,
+        **_: Any
+) -> None:
     """Perun is an open source light-weight Performance Versioning System.
 
     In order to initialize Perun in current directory run the following::
@@ -130,7 +139,7 @@ def cli(dev_mode=False, no_color=False, verbose=0, no_pager=False, **_):
         perun_log.VERBOSITY = verbose
 
 
-def configure_local_perun(perun_path):
+def configure_local_perun(perun_path: str) -> None:
     """Configures the local perun repository with the interactive help of the user
 
     :param str perun_path: destination path of the perun repository
@@ -166,19 +175,19 @@ def configure_local_perun(perun_path):
               help='States the configuration template that will be used for initialization of local'
                    ' configuration. See :ref:`config-templates` for more details about predefined '
                    ' configurations.')
-def init(dst, configure, config_template, **kwargs):
+def init(dst: str, configure: bool, config_template: str, **kwargs: Any) -> None:
     """Initializes performance versioning system at the destination path.
 
     ``perun init`` command initializes the perun's infrastructure with basic
     file and directory structure inside the ``.perun`` directory. Refer to
-    :ref:`internals-overview` for more details about storage of Perun. By
-    default following directories are created:
+    :ref:`internals-overview` for more details about storage of Perun.
+    By default, following directories are created:
 
         1. ``.perun/jobs``: storage of performance profiles not yet assigned to
            concrete minor versions.
 
         2. ``.perun/objects``: storage of packed contents of performance
-           profiles and additional informations about minor version of wrapped
+           profiles and additional information about minor version of wrapped
            vcs system.
 
         3. ``.perun/cache``: fast access cache of selected latest unpacked
@@ -192,7 +201,7 @@ def init(dst, configure, config_template, **kwargs):
     current working directory is used instead. In case there already exists a
     performance versioning system, the infrastructure is only reinitialized.
 
-    By default, a control system is initialized as well. This can be changed by
+    By default, a control system is initialized as well. This can be changed
     by setting the ``--vcs-type`` parameter (currently we support ``git`` and
     ``tagit``---a lightweight git-based wrapped based on tags). Additional
     parameters can be passed to the wrapped control system initialization using
@@ -231,7 +240,7 @@ def init(dst, configure, config_template, **kwargs):
               help='If set to true, then the profile will be registered in the <hash> minor version'
                    'index, even if its origin <hash> is different. WARNING: This can screw the '
                    'performance history of your project.')
-def add(profile, minor, **kwargs):
+def add(profile: list[str], minor: Optional[str], **kwargs: Any) -> None:
     """Links profile to concrete minor version storing its content in the
     ``.perun`` dir and registering the profile in internal minor version index.
 
@@ -252,7 +261,7 @@ def add(profile, minor, **kwargs):
 
         5. New blob is registered in <hash> minor version's index.
 
-        6. Unless ``--keep-profile`` is set. The original profile is deleted.
+        6. Unless ``--keep-profile`` is set, the original profile is deleted.
 
     If no `<hash>` is specified, then current ``HEAD`` of the wrapped version
     control system is used instead. Massaging of <hash> is taken care of by
@@ -263,10 +272,10 @@ def add(profile, minor, **kwargs):
     for an index in the pending profile directory (i.e. ``.perun/jobs``)
     and ``@p`` is literal suffix.  The ``pending tag range`` is in form
     of ``i@p-j@p``, where both ``i`` and ``j`` stands for indexes in the
-    pending profiles. The ``pending tag range`` then represents all of
+    pending profiles. The ``pending tag range`` then represents all
     the profiles in the interval <i, j>. When ``i > j``, then no profiles
-    will be add; when ``j``; when ``j`` is bigger than the number of
-    pending profiles, then all of the non-existing pending profiles will
+    will be added; when ``j``; when ``j`` is bigger than the number of
+    pending profiles, then all the non-existing pending profiles will
     be obviously skipped.
     Run ``perun status`` to see the `tag` anotation of pending profiles.
     Tags consider the sorted order as specified by the following option
@@ -304,7 +313,12 @@ def add(profile, minor, **kwargs):
 @click.option('--minor', '-m', required=False, default=None, metavar='<hash>', is_eager=True,
               callback=cli_helpers.lookup_minor_version_callback,
               help='<profile> will be stored at this minor version (default is HEAD).')
-def remove(from_index_generator, from_jobs_generator, minor, **_):
+def remove(
+        from_index_generator: set[str],
+        from_jobs_generator: set[str],
+        minor: Optional[str],
+        **_: Any
+) -> None:
     """Unlinks the profile from the given minor version, keeping the contents
     stored in ``.perun`` directory.
 
@@ -327,13 +341,13 @@ def remove(from_index_generator, from_jobs_generator, minor, **_):
     ``@i`` is literal suffix. Run ``perun status`` to see the `tags` of current
     ``HEAD``'s index. The ``index tag range`` is in form of ``i@i-j@i``, where
     both ``i`` and ``j`` stands for indexes in the minor version's index.
-    The ``index tag range`` then represents all of the profiles in the interval
+    The ``index tag range`` then represents all the profiles in the interval
     <i, j>. registered in index. When ``i > j``, then no profiles will be removed;
     when ``j``; when ``j`` is bigger than the number of pending profiles,
-    then all of the non-existing pending profiles will be obviously skipped.
+    then all the non-existing pending profiles will be obviously skipped.
     The ``pending tags`` and ``pending tag range`` are defined analogously to
     index tags, except they use the ``p`` character, i.e. ``0@p`` and ``0@p-2@p``
-    are valid pending tag and pending tag range. Otherwise one can use the path
+    are valid pending tag and pending tag range. Otherwise, one can use the path
     to represent the removed profile. If the path points to existing profile in
     pending jobs (i.e. ``.perun/jobs`` directory) the profile is removed from the
     jobs, otherwise it is looked-up in the index.
@@ -366,10 +380,10 @@ def remove(from_index_generator, from_jobs_generator, minor, **_):
 @click.option('--short', '-s', is_flag=True, default=False,
               help="Shortens the output of ``log`` to include only most "
               "necessary information.")
-def log(head, **kwargs):
+def log(head: Optional[str], **kwargs: Any) -> None:
     """Shows history of versions and associated profiles.
 
-    Shows the history of the wrapped version control system and all of the
+    Shows the history of the wrapped version control system and all the
     associated profiles starting from the <hash> point, outputing the
     information about number of profiles, about descriptions ofconcrete minor
     versions, their parents, parents etc.
@@ -381,7 +395,7 @@ def log(head, **kwargs):
 
     Unless ``perun --no-pager log`` is issued as command, or appropriate
     :ckey:`paging` option is set, the outputs of log will be paged (by
-    default using ``less``.
+    default using ``less``).
 
     Refer to :ref:`logs-log` for information how to customize the outputs of
     ``log`` or how to set :ckey:`format.shortlog` in nearest
@@ -405,19 +419,19 @@ def log(head, **kwargs):
               help="Sets the <key> in the local configuration for sorting profiles. "
                    "Note that after setting the <key> it will be used for sorting which is "
                    "considered in pending and index tags!")
-def status(**kwargs):
+def status(**kwargs: Any) -> None:
     """Shows the status of vcs, associated profiles and perun.
 
     Shows the status of both the nearest perun and wrapped version control
     system. For vcs this outputs e.g. the current minor version ``HEAD``,
-    current major version and description of the ``HEAD``.  Moreover ``status``
+    current major version and description of the ``HEAD``.  Moreover, ``status``
     prints the lists of tracked and pending (found in ``.perun/jobs``) profiles
     lexicographically sorted along with additional information such as their
     types and creation times.
 
     Unless ``perun --no-pager status`` is issued as command, or appropriate
     :ckey:`paging` option is set, the outputs of status will be paged (by
-    default using ``less``.
+    default using ``less``).
 
     An error is raised if the command is executed outside of range of any
     perun, or configuration misses certain configuration keys
@@ -447,7 +461,7 @@ def status(**kwargs):
               help='Will check the index of different minor version <hash>'
               ' during the profile lookup')
 @click.pass_context
-def show(ctx, profile, **_):
+def show(ctx: click.Context, profile: Profile, **_: Any) -> None:
     """Interprets the given profile using the selected visualization technique.
 
     Looks up the given profile and interprets it using the selected
@@ -509,7 +523,7 @@ def show(ctx, profile, **_):
               help='Will check the index of different minor version <hash>'
               ' during the profile lookup')
 @click.pass_context
-def postprocessby(ctx, profile, **_):
+def postprocessby(ctx: click.Context, profile: Profile, **_: Any) -> None:
     """Postprocesses the given stored or pending profile using selected
     postprocessor.
 
@@ -614,7 +628,7 @@ def postprocessby(ctx, profile, **_):
 @click.option('--use-cg-type', '-cg', type=(click.Choice(CallGraphTypes.supported())),
               default=CallGraphTypes.default(), callback=cli_helpers.set_call_graph_type)
 @click.pass_context
-def collect(ctx, **kwargs):
+def collect(ctx: click.Context, **kwargs: Any) -> None:
     """Generates performance profile using selected collector.
 
     Runs the single collector unit (registered in Perun) on given profiled
@@ -644,69 +658,90 @@ def collect(ctx, **kwargs):
 @click.option('--args', '-a', nargs=1, required=False, default='',
               help='Arguments for the fuzzed command.')
 @click.option('--input-sample', '-w', nargs=1, required=True, multiple=True,
-              help='Initial sample of workloads, that will be source of the fuzzing.')
+              help='Initial sample of workloads (the so called corpus).'
+                   'These will serve as initial workloads to evaluate the baseline for performance testing.'
+                   'The parameter expects either paths to files (which will be directly added), or '
+                   'paths to directories (which will be recursively searched).')
 @click.option('--collector', '-c', nargs=1, default='time',
               type=click.Choice(utils.get_supported_module_names('collect')),
-              help='Collector that will be used to collect performance data.')
+              help='Collector that will be used to collect performance data and used to infer '
+                   'baseline or target performance profiles. '
+                   'The profiles are further used for performance testing.')
 @click.option('--collector-params', '-cp', nargs=2, required=False, multiple=True,
               callback=cli_helpers.yaml_param_callback,
-              help='Additional parameters for the <collector> read from the'
-                   ' file in YAML format')
+              help='Additional parameters for the <collector>: '
+                   'can be specified as a file in YAML format or as YAML string')
 @click.option('--postprocessor', '-p', nargs=1, required=False, multiple=True,
               type=click.Choice(utils.get_supported_module_names('postprocess')),
-              help='After each collection of data will run <postprocessor> to '
-                   'postprocess the collected resources.')
+              help='After each collection of performance data, the fuzzer can run <postprocessor> to '
+                   'postprocess the collected resources (e.g. to create models of resources). '
+                   'This can be used for more thorough performance analysis.')
 @click.option('--postprocessor-params', '-pp', nargs=2, required=False, multiple=True,
               callback=cli_helpers.yaml_param_callback,
-              help='Additional parameters for the <postprocessor> read from the'
-                   ' file in YAML format')
-@click.option('--minor-version', '-m', 'minor_version_list', nargs=1,
+              help='Additional parameters for the <postprocessor>: '
+                   'can be specified as a file in YAML format or as YAML string')
+@click.option('--minor-version', '-m', 'minor_version_list', nargs=1, multiple=True,
               callback=cli_helpers.minor_version_list_callback, default=['HEAD'],
-              help='Specifies the head minor version, for which the fuzzing will be performed.')
+              help='Specifies the head minor version in the wrapped repository. '
+                   'The fuzzing will be performed for this particular version of the project.')
 @click.option('--workloads-filter', '-wf', nargs=1, required=False,
               type=str, metavar='<regexp>', default="",
-              help='Regular expression for filtering the workloads.')
-@click.option('--source-path', '-s', nargs=1, required=False,
+              help='Regular expression that will the filter input workloads/corpus. '
+                   'E.g. to restrict to certain filetypes, filenames or subdirectories.')
+@click.option('--skip-coverage-testing', is_flag=True, required=False,
+              help="If set to true, then the evaluation of mutations based on coverage testing will not be performed. "
+                   "The coverage testing is a fast heuristic to filter out mutations that will probably not lead "
+                   "to severe real degradation. The testing through perun is costly, though very precise.")
+@click.option('--source-path', '-s', nargs=1, required=False, default='.',
               type=click.Path(exists=True, readable=True), metavar='<path>',
               help='The path to the directory of the project source files.')
-@click.option('--gcno-path', '-g', nargs=1, required=False,
+@click.option('--gcno-path', '-g', nargs=1, required=False, default='.',
               type=click.Path(exists=True, writable=True), metavar='<path>',
               help='The path to the directory where .gcno files are stored.')
 @click.option('--output-dir', '-o', nargs=1, required=True,
               type=click.Path(exists=True, writable=True), metavar='<path>',
               help='The path to the directory where generated outputs will be stored.')
-@click.option('--timeout', '-t', nargs=1, required=False, default=1800,
-              type=click.IntRange(1, None, False), metavar='<int>',
+@click.option('--timeout', '-t', nargs=1, required=False, default=1800.0,
+              type=click.FloatRange(0.001, None, False), metavar='<float>',
               help='Time limit for fuzzing (in seconds).  Default value is 1800s.')
 @click.option('--hang-timeout', '-h', nargs=1, required=False, default=10,
-              type=click.FloatRange(0.001, None, False), metavar='<int>',
-              help='The time limit before input is classified as a hang (in seconds).'
-              ' Default value is 30s.')
-@click.option('--max', '-N', nargs=1, required=False,
+              type=click.FloatRange(0.001, None, False), metavar='<float>',
+              help='The time limit before the input is classified as a hang/timeout (in seconds).'
+              ' Default value is 10s.')
+@click.option('--max-size', '-N', nargs=1, required=False,
               type=click.IntRange(1, None, False), metavar='<int>',
-              help='The maximum size limit of the generated input file.'
-              ' Value should be larger than any of the initial workload,'
-              ' otherwise it will be adjusted')
-@click.option('--max-size-gain', '-mg', nargs=1, required=False, default=1000000,
+              help='Absolute value of the maximum size of the generated mutation wrt parent corpus. '
+                   'The value will be adjusted wrt to the maximal size of the workloads in corpus. '
+                   'Using this option, the maximal size of the generated mutation will be set to '
+                   'max(size of the largest workload in corpus, <int>). ')
+@click.option('--max-size-increase', '-mi', nargs=1, required=False, default=1000000,
               type=click.IntRange(0, None, False), metavar='<int>',
-              help='Max size expressed by gain. Using this option, max size of generated input'
-              ' file will be set to (size of the largest workload + value).'
-              'Default value is 1 000 000 B = 1MB.')
+              help='Absolute value of the maximal increase in the size of the generated mutation wrt parent corpus. '
+                   'Using this option, the maximal size of generated mutation will be set to '
+                   '(size of the largest corpus in workload + <INT>). '
+                   'Default value is 1 000 000 B = 1MB.')
 @click.option('--max-size-ratio', '-mp', nargs=1, required=False,
               type=click.FloatRange(0.1, None, False), metavar='<float>',
-              help='Max size expressed by percentage. Using this option, max size of generated'
-              ' input file will be set to (size of the largest workload * value).'
-              ' E.g. 1.5, max size=largest workload size * 1.5')
+              help='Relative value of the maximal increase in the size of the generated mutation wrt parent corpus. '
+                   'Using this option, the maximal size of generated mutation will be set to '
+                   '(size of the largest corpus in workload * <INT>). '
+                   ' E.g. 1.5, max size=largest workload size * 1.5')
 @click.option('--exec-limit', '-e', nargs=1, required=False, default=100,
               type=click.IntRange(1, None, False), metavar='<int>',
-              help='Defines maximum number executions while gathering interesting inputs.')
+              help='The maximum number of fuzzing iteration while gathering interesting inputs. '
+                   'By interesting inputs we mean files that might potentially lead to timeouts, hang or severe '
+                   'severe performance degradation.')
 @click.option('--interesting-files-limit', '-l', nargs=1, required=False,
               type=click.IntRange(1, None, False), metavar='<int>', default=20,
-              help='Defines minimum number of gathered interesting inputs before perun testing.')
+              help='The minimum number of gathered mutations, that are so called interesting, '
+                   'before perun testing is performed. '
+                   'By interesting inputs we mean files that might potentially lead to timeouts, hang or severe '
+                   'severe performance degradation.')
 @click.option('--coverage-increase-rate', '-cr', nargs=1, required=False, default=1.5,
               type=click.FloatRange(0, None, False), metavar='<int>',
-              help='Represents threshold of coverage increase against base coverage.'
-              '  E.g 1.5, base coverage = 100 000, so threshold = 150 000.')
+              help='The threshold of coverage increase against base coverage, which is used to evaluate, '
+                   'whether the generated mutation is interesting for further evaluation by performance testing. '
+                   'E.g 1.5, base coverage = 100 000, so threshold = 150 000.')
 @click.option('--mutations-per-rule', '-mpr', nargs=1, required=False, default='mixed',
               type=click.Choice(['unitary', 'proportional', 'probabilistic', 'mixed']),
               metavar='<str>',
@@ -714,18 +749,18 @@ def collect(ctx, **kwargs):
               ' fuzzing rule in one iteration: unitary, proportional, probabilistic, mixed')
 @click.option('--regex-rules', '-r', nargs=1, required=False, multiple=True,
               callback=cli_helpers.single_yaml_param_callback, metavar='<file>',
-              help='Option for adding custom rules specified by regular expressions,'
+              help='Option for adding custom fuzzing rules specified by regular expressions,'
               ' written in YAML format file.')
 @click.option('--no-plotting', '-np', is_flag=True, required=False,
-              help='Avoiding sometimes lengthy plotting of graphs.')
-def fuzz_cmd(cmd, args, **kwargs):
+              help='Will not plot the interpretation of the fuzzing in form of graphs.')
+def fuzz_cmd(cmd: str, args: str, **kwargs: Any) -> None:
     """Performs fuzzing for the specified command according to the initial sample of workload."""
     kwargs['executable'] = Executable(cmd, args)
     fuzz.run_fuzzing_for_command(**kwargs)
 
 
-def init_unit_commands(lazy_init=True):
-    """Runs initializations for all of the subcommands (shows, collectors, postprocessors)
+def init_unit_commands(lazy_init: bool = True) -> None:
+    """Runs initializations for all of subcommands (shows, collectors, postprocessors)
 
     Some of the subunits has to be dynamically initialized according to the registered modules,
     like e.g. show has different forms (raw, graphs, etc.).
@@ -735,22 +770,8 @@ def init_unit_commands(lazy_init=True):
                                      (perun.collect, collect, 'collect')]:
         if lazy_init and cli_arg not in sys.argv:
             continue
-        for module in pkgutil.walk_packages(unit.__path__, unit.__name__ + '.'):
-            # Skip modules, only packages can be used for show
-            if not module[2]:
-                continue
-            unit_package = perun.utils.get_module(module[1])
-
-            # Skip packages that are not for viewing, postprocessing, or collection of profiles
-            if not hasattr(unit_package, 'SUPPORTED_PROFILES') and \
-                    not hasattr(unit_package, 'COLLECTOR_TYPE'):
-                continue
-
-            # Skip those packages that do not contain the appropriate cli wrapper
-            unit_module = perun.utils.get_module(module[1] + '.' + 'run')
-            cli_function_name = module[1].split('.')[-1]
-            if hasattr(unit_module, cli_function_name):
-                cli_cmd.add_command(getattr(unit_module, cli_function_name))
+        for cmd in unit.lazy_get_cli_commands():
+            cli_cmd.add_command(cmd)
 
 
 # Initialization of other stuff
@@ -761,10 +782,10 @@ cli.add_command(run_cli.run)
 cli.add_command(utils_cli.utils_group)
 
 
-def launch_cli_in_dev_mode():
+def launch_cli_in_dev_mode() -> None:
     """Runs the cli in developer mode.
 
-    In this mode, all of the exceptions are propagated, and additionally faulthandler and
+    In this mode, all the exceptions are propagated, and additionally faulthandler and
     tracemalloc is enabled to ease the debugging.
     """
     import tracemalloc
@@ -774,16 +795,16 @@ def launch_cli_in_dev_mode():
     cli()
 
 
-def launch_cli_safely():
+def launch_cli_safely() -> None:
     """Safely runs the cli.
 
     In case any exceptions are raised, they are catched and dump is created with additional
     debugging information, such as the environment, perun version, perun commands, etc.
     """
+    stdout_log = perun_log.Logger(sys.stdout)
+    stderr_log = perun_log.Logger(sys.stderr)
+    sys.stdout, sys.stderr = stdout_log, stderr_log
     try:
-        stdout_log = perun_log.Logger(sys.stdout)
-        stderr_log = perun_log.Logger(sys.stderr)
-        sys.stdout, sys.stderr = stdout_log, stderr_log
         cli()
     except Exception as catched_exception:
         error_module = catched_exception.__module__ + '.' \
@@ -796,7 +817,7 @@ def launch_cli_safely():
             cli_helpers.generate_cli_dump(reported_error, catched_exception, stdout_log, stderr_log)
 
 
-def launch_cli():
+def launch_cli() -> None:
     """Runs the CLI either in developer mode or in safe mode"""
     if DEV_MODE or '--dev-mode' in sys.argv or '-d' in sys.argv:
         launch_cli_in_dev_mode()

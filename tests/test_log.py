@@ -15,8 +15,8 @@ import perun.logic.config as config
 import perun.logic.commands as commands
 import perun.utils.helpers as helpers
 from perun.utils.exceptions import NotPerunRepositoryException, UnsupportedModuleException
-
-__author__ = 'Tomas Fiedor'
+from perun.utils.structs import MinorVersion, ProfileListConfig
+from perun.profile.helpers import ProfileInfo
 
 
 @pytest.mark.usefixtures('cleandir')
@@ -49,7 +49,7 @@ def test_log_on_no_vcs(pcs_without_vcs):
     assert "'pvcs' is not supported" in str(exc.value)
 
 
-def test_log_short_error(pcs_full, capsys, monkeypatch):
+def test_log_short_error(pcs_with_root, capsys, monkeypatch):
     cfg = config.Config('shared', '', {'format': {'shortlog': '%checksum:6% -> %notexist%'}})
     monkeypatch.setattr("perun.logic.config.shared", lambda: cfg)
     decorators.remove_from_function_args_cache("lookup_key_recursively")
@@ -63,13 +63,13 @@ def test_log_short_error(pcs_full, capsys, monkeypatch):
     assert "object does not contain 'notexist' attribute" in err
 
 
-def test_log_short(pcs_full, capsys):
+def test_log_short(pcs_single_prof, capsys):
     """Test calling 'perun log --short', which outputs shorter info
 
     Expecting no error, everything on standard output, and list of commits with number of profiles
     for each of them starting from the head.
     """
-    git_repo = git.Repo(pcs_full.get_vcs_path())
+    git_repo = git.Repo(pcs_single_prof.get_vcs_path())
     commits = list(git_repo.iter_commits())
 
     commands.log(None, short=True)
@@ -102,13 +102,13 @@ def test_log_short(pcs_full, capsys):
     assert len(out.split('\n')) - 1 == len(commits) + 2
 
 
-def test_log(pcs_full, capsys):
+def test_log(pcs_single_prof, capsys):
     """Test calling 'perun log' with working stuff
 
     Expecting no error, everything on standard output, and list of commits, with full messages
     and number of profiles for each of the starting from the head.
     """
-    git_repo = git.Repo(pcs_full.get_vcs_path())
+    git_repo = git.Repo(pcs_single_prof.get_vcs_path())
     commits = list(git_repo.iter_commits())
 
     commands.log(None)
@@ -130,3 +130,51 @@ def test_log(pcs_full, capsys):
 
         for parent in commit.parents:
             assert str(parent) in out
+
+
+def test_internals(capsys, monkeypatch):
+    """Test internal functions used in log and short logs"""
+    # Testing incorrect token
+    with pytest.raises(SystemExit):
+        commands.print_shortlog_token(
+            "%short:9", {}, MinorVersion('', '', '', '', '', []), 0, "%short:9"
+        )
+    _, err = capsys.readouterr()
+    assert 'incorrect formatting token %short:9' in err
+
+    with pytest.raises(SystemExit):
+        commands.print_shortlog_profile_list_header(
+            [('fmt_string', "%short:9")], {}
+        )
+    _, err = capsys.readouterr()
+    assert 'incorrect formatting token %short:9' in err
+
+    def patched_cwd():
+        return '.'
+    # This test could be better
+    monkeypatch.setattr("os.getcwd", patched_cwd)
+    test_profile = {
+        'header': {
+            'type': 'memory', 'cmd': 'cmd', 'args': 'args', 'workload': 'w'
+        },
+        'collector_info': {
+            'name': "n"
+        },
+        'postprocessors': []
+    }
+    pi = ProfileInfo("path", '..', "time", test_profile)
+    with pytest.raises(SystemExit):
+        commands.print_status_profiles(
+            [('fmt_string', "%short:9")],
+            ProfileListConfig("pending", True, []),
+            {},
+            "%short:9",
+            [pi]
+        )
+
+    with pytest.raises(SystemExit):
+        commands.adjust_header_length(
+            [('fmt_string', "%short:9")],
+            {},
+            ProfileListConfig("pending", True, []),
+        )

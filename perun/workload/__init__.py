@@ -12,18 +12,19 @@ You can use some basic generators specified in shared configurations called ``ba
 (which generates text files with number of lines from interval (10, 10000), with increment of
 1000).
 """
+from __future__ import annotations
 
 import perun.logic.config as config
 import perun.utils.log as log
 import perun.utils as utils
+import perun.utils.decorators as decorators
 
 from perun.utils.structs import GeneratorSpec
 
-__author__ = 'Tomas Fiedor'
 
-
-def load_generator_specifications():
-    """Collects from configuration file all of the workload specifications and constructs a mapping
+@decorators.resetable_always_singleton
+def load_generator_specifications() -> dict[str, GeneratorSpec]:
+    """Collects from configuration file all the workload specifications and constructs a mapping
     of 'id' -> GeneratorSpec, which contains the constructor and parameters used for construction.
 
     The specifications are specified by :ckey:`generators.workload` as follows:
@@ -40,30 +41,30 @@ def load_generator_specifications():
     specifications_from_config = config.gather_key_recursively('generators.workload')
     spec_map = {}
     warnings = []
-    print("Loading workload generator specifications ", end='')
+    log.info("Loading workload generator specifications ", end='')
     for spec in specifications_from_config:
         if 'id' not in spec.keys() or 'type' not in spec.keys():
             warnings.append("incorrect workload specification: missing 'id' or 'type'")
-            print("F", end='')
+            log.info("F", end='')
             continue
         generator_module = "perun.workload.{}_generator".format(spec['type'].lower())
         constructor_name = "{}Generator".format(spec['type'].title())
         try:
             constructor = getattr(utils.get_module(generator_module), constructor_name)
             spec_map[spec['id']] = GeneratorSpec(constructor, spec)
-            print(".", end='')
+            log.info(".", end='')
         except (ImportError, AttributeError):
             warnings.append(
                 "incorrect workload generator '{}': '{}' is not valid workload type".format(
                     spec['id'], spec['type']
                 )
             )
-            print("F", end='')
+            log.info("F", end='')
 
     # Print the warnings and badge
     if warnings:
         log.failed()
-        print("\n".join(warnings))
+        log.info("\n".join(warnings))
     else:
         log.done()
 

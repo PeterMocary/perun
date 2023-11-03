@@ -1,11 +1,16 @@
 """
 Module with regressogram computational method and auxiliary methods at executing of this method.
 """
+from __future__ import annotations
+
 import inspect
 import numpy as np
 import numpy.lib.histograms as numpy_bucket_selectors
 import scipy.stats
 import sklearn.metrics
+
+from typing import Iterator, Any
+
 
 import perun.postprocess.regression_analysis.tools as tools
 
@@ -13,7 +18,7 @@ import perun.postprocess.regression_analysis.tools as tools
 _REQUIRED_KEYS = ['bucket_method', 'statistic_function']
 
 
-def get_supported_nparam_methods():
+def get_supported_nparam_methods() -> list[str]:
     """Provides all currently supported computational methods, to
     estimate the optimal number of buckets, as a list of their names.
 
@@ -22,7 +27,7 @@ def get_supported_nparam_methods():
     return _METHODS
 
 
-def get_supported_selectors():
+def get_supported_selectors() -> list[str]:
     """Provides all currently supported computational methods, to
     estimate the optimal number of buckets, as a list of their names.
 
@@ -31,7 +36,9 @@ def get_supported_selectors():
     return list(_BUCKET_SELECTORS.keys())
 
 
-def compute_regressogram(data_gen, config):
+def compute_regressogram(
+        data_gen: Iterator[tuple[list[float], list[float], str]], config: dict[str, Any]
+) -> list[dict[str, Any]]:
     """
     The regressogram wrapper to execute the analysis on the individual chunks of resources.
 
@@ -60,7 +67,7 @@ def compute_regressogram(data_gen, config):
     return analysis
 
 
-def regressogram(x_pts, y_pts, statistic_function, buckets):
+def regressogram(x_pts: list[float], y_pts: list[float], statistic_function: str, buckets: str | int) -> dict[str, Any]:
     """
     Compute the regressogram (binning approach) of a set of data.
 
@@ -113,41 +120,20 @@ def regressogram(x_pts, y_pts, statistic_function, buckets):
         )
     }
 
-
-def render_step_function(graph, x_pts, y_pts, graph_params):
-    """
-    Render step lines according to given coordinates and other parameters.
-
-    :param charts.Graph graph: the scatter plot
-    :param x_pts: the x-coordinates for the points of the line
-    :param y_pts: the y-coordinates for the points of the line
-    :param dict graph_params: contains the specification of parameters for graph
-        (color, line_width, legend)
-    :returns charts.Graph: the modified graph with model of step function
-    """
-    x_x = np.sort(list(x_pts) + list(x_pts))
-    x_x = x_x[:-1]
-    y_y = list(y_pts) + list(y_pts)
-    y_y[::2] = y_pts
-    y_y[1::2] = y_pts
-    y_y = y_y[1:]
-    graph.line(x_x, y_y, color=graph_params.get('color'), line_width=graph_params.get('line_width'),
-               legend=graph_params.get('legend'))
-    return graph
-
-
 # Code for calculating number of buckets for regressogram can be got from SciPy:
 # https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram_bin_edges.html#numpy.histogram_bucket_edges
 
 # supported methods to choose bucket sizes for regressogram
+# Note: Here, we ignore the type, as these are private/protected internal functions, yet we wish to use them ourselves
+# without the need to call their main wrapper (histogram)
 _BUCKET_SELECTORS = {
-    'auto': numpy_bucket_selectors._hist_bin_auto,
-    'doane': numpy_bucket_selectors._hist_bin_doane,
-    'fd': numpy_bucket_selectors._hist_bin_fd,
-    'rice': numpy_bucket_selectors._hist_bin_rice,
-    'scott': numpy_bucket_selectors._hist_bin_scott,
-    'sqrt': numpy_bucket_selectors._hist_bin_sqrt,
-    'sturges': numpy_bucket_selectors._hist_bin_sturges,
+    'auto': numpy_bucket_selectors._hist_bin_auto,  # type: ignore
+    'doane': numpy_bucket_selectors._hist_bin_doane,  # type: ignore
+    'fd': numpy_bucket_selectors._hist_bin_fd,  # type: ignore
+    'rice': numpy_bucket_selectors._hist_bin_rice,  # type: ignore
+    'scott': numpy_bucket_selectors._hist_bin_scott,  # type: ignore
+    'sqrt': numpy_bucket_selectors._hist_bin_sqrt,  # type: ignore
+    'sturges': numpy_bucket_selectors._hist_bin_sturges,  # type: ignore
 }
 
 # supported non-parametric methods

@@ -7,6 +7,7 @@ import perun.logic.config as config
 import perun.workload as workload
 import perun.logic.runner as runner
 import perun.logic.store as store
+import perun.utils.decorators as decorators
 
 from perun.utils.structs import Unit, Executable, CollectStatus, Job
 from perun.workload.integer_generator import IntegerGenerator
@@ -14,11 +15,9 @@ from perun.workload.singleton_generator import SingletonGenerator
 from perun.workload.string_generator import StringGenerator
 from perun.workload.textfile_generator import TextfileGenerator
 from perun.workload.external_generator import ExternalGenerator
-from perun.workload.generator import Generator
+from perun.workload.generator import WorkloadGenerator
 
 from subprocess import CalledProcessError
-
-__author__ = 'Tomas Fiedor'
 
 
 def test_integer_generator():
@@ -34,7 +33,7 @@ def test_integer_generator():
         assert len(profile['resources']) > 0
 
     # Try that the pure generator raises error
-    pure_generator = Generator(integer_job)
+    pure_generator = WorkloadGenerator(integer_job)
     with pytest.raises(SystemExit):
         _ = list(pure_generator.generate(runner.run_collector))
 
@@ -60,7 +59,7 @@ def test_integer_generator_for_each():
     assert len(collection_pairs) == 1
 
 
-def test_loading_generators_from_config(monkeypatch, pcs_full):
+def test_loading_generators_from_config(monkeypatch, pcs_with_root):
     """Tests loading generator specification from config"""
     # Initialize the testing configurations
     collector = Unit('time', {'warmup': 1, 'repeat': 1})
@@ -102,6 +101,8 @@ def test_loading_generators_from_config(monkeypatch, pcs_full):
     })
     monkeypatch.setattr("perun.logic.config.local", lambda _: temp_local)
     monkeypatch.setattr("perun.logic.config.shared", lambda: temp_global)
+    # Manually reset the singleton
+    decorators.manual_registered_singletons['load_generator_specifications'].instance = None
 
     spec_map = workload.load_generator_specifications()
     assert len(spec_map.keys()) == 2
@@ -116,6 +117,8 @@ def test_loading_generators_from_config(monkeypatch, pcs_full):
         assert c_status == CollectStatus.OK
         assert profile
         assert len(profile['resources'])
+    # Restore the singleton
+    decorators.manual_registered_singletons['load_generator_specifications'].instance = None
 
 
 def test_singleton():

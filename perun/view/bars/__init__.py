@@ -9,6 +9,4 @@ different groups will be displayed next to each other).
 .. _ncurses: https://www.gnu.org/software/ncurses/ncurses.html
 """
 
-SUPPORTED_PROFILES = ['memory']
-
-__author__ = 'Radim Podola'
+SUPPORTED_PROFILES = ["memory"]

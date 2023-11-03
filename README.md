@@ -1,11 +1,11 @@
 Perun: Lightweight Performance Version System
 =============================================
 
-![image](https://travis-ci.org/tfiedor/perun.svg?branch=master)
-[![codecov](https://codecov.io/gh/tfiedor/perun/branch/master/graph/badge.svg)](https://codecov.io/gh/tfiedor/perun)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/c4002ae488f54aabb77920a0cc90b6f5)](https://www.codacy.com/app/tfiedor/perun?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=tfiedor/perun&amp;utm_campaign=Badge_Grade)
-[![Maintainability](https://api.codeclimate.com/v1/badges/233e3e1a434815fee154/maintainability)](https://codeclimate.com/github/tfiedor/perun/maintainability)
-[![GitHub tag](https://img.shields.io/github/tag/tfiedor/perun.svg)](https://github.com/tfiedor/perun)
+[![build status](https://github.com/Perfexionists/perun/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/Perfexionists/perun/actions)
+[![codecov](https://codecov.io/gh/Perfexionists/perun/graph/badge.svg?token=3x4Luodr84)](https://codecov.io/gh/Perfexionists/perun)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/a704486b4679442cb2a53173475f79ca)](https://app.codacy.com/gh/Perfexionists/perun/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![Maintainability](https://api.codeclimate.com/v1/badges/1e47ad63527d8d2e14c3/maintainability)](https://codeclimate.com/github/Perfexionists/perun/maintainability)
+[![GitHub tag](https://img.shields.io/github/tag/Perfexionists/perun.svg)](https://github.com/Perfexionists/perun)
 
 
 <p align="center">
@@ -52,11 +52,13 @@ makes it a good store of profiles along with the context.
 Installation
 ------------
 
+Note that we are no longer maintaining support for Python 3.8. Perun may work, but we strongly 
+advise to upgrade your Python to newer version.
+
 You can install Perun as follows:
 
     git clone https://github.com/tfiedor/perun.git
     cd perun
-    make init
     make install
 
 These commands install Perun to your system as a runnable python package. You can then run Perun
@@ -67,7 +69,10 @@ might require root permissions to install Perun.
 
 It is advised to verify that Perun is running correctly in your environment as follows:
 
+    pip install .[test]
     make test
+
+or alternatively using Tox (see the [developing section](#developing)).
 
 ### Installing Tracer Dependencies
 
@@ -185,7 +190,6 @@ Alternatively you can install Perun in development mode:
 
     git clone https://github.com/tfiedor/perun.git
     cd perun
-    make init
     make dev
 
 This method of installation allows you to make a changes to the code, which will be then reflected
@@ -194,7 +198,24 @@ by the installation.
 Again, it is advised to verify that Perun is running correctly in your environment as follows:
 
     make test
-    
+
+Alternatively, you can use [Tox](https://tox.wiki/en/latest/) to run tests for all the supported
+Python versions, as well as run static type checking, code style linting and generating
+documentation:
+
+    tox run
+
+If you wish to test only against a single Python version, run Tox as:
+
+    tox run -e py3.Y
+
+where `Y` is the python sub-version you wish to test. To see the available Tox environments (and
+consequently, the supported Python versions), run:
+
+    tox list
+
+---
+
 If you are interested in contributing to Perun project, please refer to
 [contributing](CONTRIBUTING) section. If you think your results could help others, please [send us
 PR](https://github.com/tfiedor/perun/pull/new/develop), we will review the code and in case it is
@@ -342,7 +363,7 @@ Links
            this project!
    -   Project documentation:
        - Online: <https://tfiedor.github.io/perun/>
-       - Latest Typeset: <https://github.com/tfiedor/perun/blob/master/docs/pdf/perun.pdf>
+       - Latest Typeset: <https://github.com/tfiedor/perun/blob/devel/docs/pdf/perun.pdf>
      
 Unrelated links:
 

@@ -1,4 +1,5 @@
 """Group of CLI commands used for detecting degradations in VCS history"""
+from __future__ import annotations
 
 import distutils.util as dutils
 
@@ -10,8 +11,9 @@ import perun.logic.config as perun_config
 import perun.utils.cli_helpers as cli_helpers
 import perun.utils.log as log
 
-
-__author__ = 'Tomas Fiedor'
+from typing import Any, TYPE_CHECKING, Optional
+if TYPE_CHECKING:
+    from perun.profile.factory import Profile
 
 
 @click.group('check')
@@ -34,7 +36,7 @@ __author__ = 'Tomas Fiedor'
                    "the detection between two profiles, respectively between relevant "
                    "kinds of its models. Available only in the following detection "
                    "methods: Integral Comparison (IC) and Local Statistics (LS).")
-def check_group(**_):
+def check_group(**_: Any) -> None:
     """Applies for the points of version history checks for possible performance changes.
 
     This command group either runs the checks for one point of history (``perun check head``) or for
@@ -53,31 +55,33 @@ def check_group(**_):
     The example of configuration snippet that sets rules and strategies for one project can be as
     follows:
 
-      .. code-block:: yaml
+    .. code-block:: yaml
 
-      \b
-          degradation:
-            apply: first
-            strategies:
-              - type: mixed
-                postprocessor: regression_analysis
-                method: bmoe
-              - cmd: mybin
-                type: memory
-                method: bmoe
-              - method: aat
+        \b
+
+        degradation:
+          apply: first
+          strategies:
+            - type: mixed
+              postprocessor: regression_analysis
+              method: bmoe
+            - cmd: mybin
+              type: memory
+              method: bmoe
+            - method: aat
 
     Currently we support the following methods:
 
-      \b
-      1. Best Model Order Equality (BMOE)
-      2. Average Amount Threshold (AAT)
-      3. Polynomial Regression (PREG)
-      4. Linear Regression (LREG)
-      5. Fast Check (FAST)
-      6. Integral Comparison (INT)
-      7. Local Statistics (LOC)
-      8. Exclusive Time Outliers (ETO)
+        \b
+
+        1. Best Model Order Equality (BMOE)
+        2. Average Amount Threshold (AAT)
+        3. Polynomial Regression (PREG)
+        4. Linear Regression (LREG)
+        5. Fast Check (FAST)
+        6. Integral Comparison (INT)
+        7. Local Statistics (LOC)
+        8. Exclusive Time Outliers (ETO)
 
     """
     should_precollect = dutils.strtobool(str(
@@ -106,7 +110,7 @@ def check_group(**_):
 @check_group.command('head')
 @click.argument('head_minor', required=False, metavar='<hash>', nargs=1,
                 callback=cli_helpers.lookup_minor_version_callback, default='HEAD')
-def check_head(head_minor='HEAD'):
+def check_head(head_minor: str = 'HEAD') -> None:
     """Checks for changes in performance between between specified minor version (or current `head`)
     and its predecessor minor versions.
 
@@ -125,7 +129,7 @@ def check_head(head_minor='HEAD'):
 @check_group.command('all')
 @click.argument('minor_head', required=False, metavar='<hash>', nargs=1,
                 callback=cli_helpers.lookup_minor_version_callback, default='HEAD')
-def check_all(minor_head='HEAD'):
+def check_all(minor_head: str = 'HEAD') -> None:
     """Checks for changes in performance for the specified interval of version history.
 
     The commands crawls through the whole history of project versions starting from the specified
@@ -148,12 +152,14 @@ def check_all(minor_head='HEAD'):
               help='Will check the index of different minor version <hash>'
                    ' during the profile lookup.')
 @click.pass_context
-def check_profiles(ctx, baseline_profile, target_profile, minor, **_):
+def check_profiles(
+        ctx: click.Context, baseline_profile: Profile, target_profile: Profile, minor: Optional[str], **_: str
+) -> None:
     """Checks for changes in performance between two profiles.
 
-    The commands checks for the changes between two isolate profiles, that can be stored in pending
+    The command checks for the changes between two isolate profiles, that can be stored in pending
     profiles, registered in index, or be simply stored in filesystem. Then for the pair of profiles
-    <baseline> and <target> the command runs the performance chekc according to the set of
+    <baseline> and <target> the command runs the performance check according to the set of
     strategies set in the configuration (see :ref:`degradation-config` or :doc:`config`).
 
     <baseline> and <target> profiles will be looked up in the following steps:
@@ -174,6 +180,7 @@ def check_profiles(ctx, baseline_profile, target_profile, minor, **_):
            is asked for confirmation by user.
 
     """
+    assert ctx.parent is not None and f"impossible happened: {ctx} has no parent"
     log.newline()
     check.degradation_between_files(
         baseline_profile, target_profile, minor,

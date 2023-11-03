@@ -8,8 +8,8 @@ import perun.vcs as vcs
 import perun.testing.utils as test_utils
 import perun.testing.asserts as asserts
 
+
 TABLE_TEST_DIR = os.path.join(os.path.split(__file__)[0], 'references', "table_files")
-__author__ = 'Tomas Fiedor'
 
 
 def output_to_list(output):
@@ -38,7 +38,7 @@ def assert_files_match_output(result, rhs):
     assert output_to_list(result.output.split('\n')) == output_to_list(rhs.readlines())
 
 
-def test_table_cli(pcs_full, postprocess_profiles):
+def test_table_cli(pcs_full):
     """Test outputing profiles as tables"""
     runner = CliRunner()
     result = runner.invoke(cli.show, [
@@ -48,7 +48,7 @@ def test_table_cli(pcs_full, postprocess_profiles):
     with open(os.path.join(TABLE_TEST_DIR, 'table_resources_ref_basic'), 'r') as trb:
         assert_files_match_output(result, trb)
 
-    models_profile = test_utils.profile_filter(postprocess_profiles, 'complexity-models.perf', return_type='name')
+    models_profile = test_utils.load_profilename('postprocess_profiles', 'complexity-models.perf')
     added = test_utils.prepare_profile(
         pcs_full.get_job_directory(), models_profile, vcs.get_minor_head()
     )

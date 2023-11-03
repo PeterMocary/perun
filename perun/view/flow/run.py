@@ -1,21 +1,17 @@
 """Flow graphs visualization of the profiles."""
+from __future__ import annotations
 
 import click
 
-import perun.utils.bokeh_helpers as bokeh_helpers
-import perun.utils.cli_helpers as cli_helpers
-import perun.utils.log as log
-import perun.utils.helpers as helpers
-import perun.view.flow.factory as flow_factory
+from typing import Any
+
+from perun.utils import view_helpers, cli_helpers, log, helpers
 from perun.utils.exceptions import InvalidParameterException
-from perun.profile.factory import pass_profile
+from perun.profile.factory import pass_profile, Profile
+import perun.view.flow.factory as flow_factory
 
 
-__author__ = 'Radim Podola'
-__coauthored__ = 'Tomas Fiedor'
-
-
-def process_title(ctx, _, value):
+def process_title(ctx: click.Context, _: click.Option, value: str) -> str:
     """Processes the default value for the flow graph title.
 
     If the value supplied from CLI is non-None, it is returned as it is. Otherwise, we try to
@@ -29,13 +25,13 @@ def process_title(ctx, _, value):
     :param object value: value that is being processed ad add to parameter
     :returns object: either value (if it is non-None) or default title of the graph
     """
-    if not value:
-        # Construct default title of the graph
-        return "{} of '{}' through '{}' for each {} {}".format(
-            ctx.params['func'].capitalize(), ctx.params['of_key'], ctx.params['through_key'],
-            ctx.params['by_key'], ctx.params['stacked']*"(stacked)"
-        )
-    return value
+    return value or (
+        f"{ctx.params['func'].capitalize()} "
+        f"of '{ctx.params['of_key']}' "
+        f"through '{ctx.params['through_key']}' "
+        f"for each {ctx.params['by_key']} "
+        f"{ctx.params['stacked']*'(stacked)'}"
+    )
 
 
 @click.command()
@@ -76,7 +72,7 @@ def process_title(ctx, _, value):
               " browser (firefox will be used).")
 @pass_profile
 # Fixme: Consider breaking this to two
-def flow(profile, filename, view_in_browser, **kwargs):
+def flow(profile: Profile, filename: str, view_in_browser: bool, **kwargs: Any) -> None:
     """Customizable interpretation of resources using the flow format.
 
     .. _Bokeh: https://bokeh.pydata.org/en/latest/
@@ -128,8 +124,8 @@ def flow(profile, filename, view_in_browser, **kwargs):
     `flow` interpretation possibilities.
     """
     try:
-        bokeh_helpers.process_profile_to_graphs(
+        view_helpers.process_profile_to_graphs(
             flow_factory, profile, filename, view_in_browser, **kwargs
         )
     except (InvalidParameterException, AttributeError) as iap_error:
-        log.error("while creating flow graph: {}".format(str(iap_error)))
+        log.error(f"while creating flow graph: {str(iap_error)}")

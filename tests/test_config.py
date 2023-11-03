@@ -15,8 +15,6 @@ import perun.logic.config as config
 from perun.utils.exceptions import NotPerunRepositoryException, MissingConfigSectionException, \
     ExternalEditorErrorException, InvalidParameterException
 
-__author__ = 'Tomas Fiedor'
-
 
 @pytest.mark.usefixtures('cleandir')
 def test_get_outside_of_pcs():
@@ -25,7 +23,7 @@ def test_get_outside_of_pcs():
         commands.config_edit('local')
 
 
-def test_get_exists(pcs_full, capsys):
+def test_get_exists(pcs_with_root, capsys):
     """Test calling 'perun --get KEY', such that the key exists"""
     # Get valid thing from local
     commands.config_get('local', 'vcs.type')
@@ -58,7 +56,7 @@ def test_get_exists(pcs_full, capsys):
         commands.config_get('local', 'general,editor')
 
 
-def test_set_exists(pcs_full, capsys):
+def test_set_exists(pcs_with_root, capsys):
     """Test calling 'perun --set KEY', such that the key was in config and is reset"""
     # Set valid thing in local
     commands.config_set('local', 'bogus.key', 'true')
@@ -88,7 +86,7 @@ def test_set_exists(pcs_full, capsys):
     assert err == ''
 
 
-def test_edit(pcs_full, capsys):
+def test_edit(pcs_with_root, capsys):
     """Test 'editing' the configuration file
 
     Expecting no errors or exceptions
@@ -142,6 +140,11 @@ def test_inits(capsys, tmpdir):
     assert local_config.path == os.path.join(str(temp_dir), 'local.yml')
     assert local_config.data['vcs']['type'] == 'git'
     assert local_config.data['vcs']['url'] == str(temp_dir)
+
+    # Try bulk get
+    vurl, vtype = local_config.get_bulk(['vcs.url', 'vcs.type'])
+    assert vurl == str(temp_dir)
+    assert vtype == 'git'
 
     # Try local, when the local was not initialized at all
     other_dir = tmpdir.mkdir('.perun2')

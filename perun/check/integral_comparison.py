@@ -2,16 +2,21 @@
 The module contains the methods, that executes the computational logic of
 `integral_comparison` detection method.
 """
+from __future__ import annotations
 
 import numpy as np
 import scipy.integrate as integrate
+
+from typing import Any, Iterable
 
 import perun.check.factory as factory
 import perun.check.nonparam_helpers as nparam_helpers
 import perun.postprocess.regression_analysis.regression_models as regression_models
 import perun.postprocess.regression_analysis.tools as tools
 
-__author__ = 'Simon Stupinsky'
+from perun.profile.factory import Profile
+from perun.utils.structs import DegradationInfo, ModelRecord
+
 
 # acceptable value of relative error between compared profiles to detect NO_CHANGE state
 _INTEGRATE_DIFF_NO_CHANGE = .10
@@ -20,7 +25,7 @@ _INTEGRATE_DIFF_NO_CHANGE = .10
 _INTEGRATE_DIFF_CHANGE = .25
 
 
-def compute_param_integral(model):
+def compute_param_integral(model: ModelRecord) -> float:
     """
     Computation of definite integral of parametric model.
 
@@ -33,12 +38,11 @@ def compute_param_integral(model):
     :return float: the value of integral of `formula` from `x_start` to `x_end`
     """
     formula = regression_models.get_formula_of(model.type)
-    coeffs = (model.b0, model.b1,)
-    coeffs = coeffs + (model.b2,) if model.type == 'quadratic' else coeffs
+    coeffs = (model.b0, model.b1, model.b2,) if model.type == 'quadratic' else (model.b0, model.b1)
     return integrate.quad(formula, model.x_start, model.x_end, args=coeffs)[0]
 
 
-def compute_nparam_integral(x_pts, y_pts):
+def compute_nparam_integral(x_pts: list[float], y_pts: list[float]) -> float:
     """
     Computation of integral of non-parametric model.
 
@@ -51,10 +55,16 @@ def compute_nparam_integral(x_pts, y_pts):
     :param list y_pts: list of y-coordinates from non-parametric model
     :return float: the value of integral computed using samples
     """
-    return integrate.simps(y_pts, x_pts)
+    return integrate.simps(y_pts, x_pts, even="avg")
 
 
-def execute_analysis(uid, baseline_model, target_model, **kwargs):
+def execute_analysis(
+        uid: str,
+        baseline_model: ModelRecord,
+        target_model: ModelRecord,
+        target_profile: Profile,
+        **_: Any
+) -> dict[str, Any]:
     """
     A method performs the primary analysis for pair of models.
 
@@ -67,12 +77,13 @@ def execute_analysis(uid, baseline_model, target_model, **kwargs):
     :param str uid: unique identification of given models (not used in this detection method)
     :param ModelRecord baseline_model: dictionary of baseline model with its required properties
     :param ModelRecord target_model: dictionary of target_model with its required properties
+    :param Profile target_profile: target profile for the analysis
     :param dict kwargs: unification with remaining detection methods (i.e. Integral Comparison)
     :return DegradationInfo: tuple with degradation info between pair of models:
         (deg. result, deg. location, deg. rate, confidence type and rate, etc.)
     """
     x_pts, baseline_y_pts, target_y_pts = nparam_helpers.preprocess_nonparam_models(
-        uid, baseline_model, kwargs.get('target_profile'), target_model
+        uid, baseline_model, target_profile, target_model
     )
 
     baseline_integral = compute_param_integral(baseline_model) if baseline_model.b1 is not None else \
@@ -93,7 +104,9 @@ def execute_analysis(uid, baseline_model, target_model, **kwargs):
     }
 
 
-def integral_comparison(baseline_profile, target_profile, models_strategy='best-model'):
+def integral_comparison(
+        baseline_profile: Profile, target_profile: Profile, models_strategy: str = 'best-model'
+) -> Iterable[DegradationInfo]:
     """
     The wrapper of `integral comparison` detection method. Method calls the general method
     for running the detection between pairs of profile (baseline and target) and subsequently

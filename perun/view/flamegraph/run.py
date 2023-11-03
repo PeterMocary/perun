@@ -1,10 +1,11 @@
 """Flame graph visualization of the profiles."""
+from __future__ import annotations
 
 import click
-import perun.view.flamegraph.flamegraph as flame
-from perun.profile.factory import pass_profile
+from typing import Any
 
-__author__ = 'Radim Podola'
+import perun.view.flamegraph.flamegraph as flame
+from perun.profile.factory import pass_profile, Profile
 
 
 @click.command()
@@ -13,7 +14,7 @@ __author__ = 'Radim Podola'
 @click.option('--graph-height', '-h', default=20, type=int,
               help="Increases the width of the resulting flame graph.")
 @pass_profile
-def flamegraph(profile, filename, graph_height, **_):
+def flamegraph(profile: Profile, filename: str, graph_height: int, **_: Any) -> None:
     """Flame graph interprets the relative and inclusive presence of the
     resources according to the stack depth of the origin of resources.
 

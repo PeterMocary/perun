@@ -1,19 +1,19 @@
 """Scatter plot interpretation of the profile"""
+from __future__ import annotations
 
 import click
 
-import perun.profile.helpers as profiles
-import perun.utils.cli_helpers as cli_helpers
-import perun.utils.bokeh_helpers as bokeh_helpers
+from typing import Any
+
+from perun.utils.helpers import sanitize_filepart
 import perun.view.scatter.factory as scatter_factory
-
-from perun.profile.factory import pass_profile
-
-__author__ = 'Jiri Pavela'
+from perun.profile.factory import pass_profile, Profile
+from perun.utils import cli_helpers, view_helpers
 
 
-def process_title(ctx, _, value):
-    """ Creates default title for scatter plot graph, if not provided by the user.
+def process_title(ctx: click.Context, _: click.Option, value: str) -> str:
+
+    """Creates default title for scatter plot graph, if not provided by the user.
 
     If the value supplied from CLI is non-None, it is returned as it is. Otherwise, we try to
     create some optimal name for the graph ourselves. We do this according to already processed
@@ -29,7 +29,7 @@ def process_title(ctx, _, value):
     :param object value: value that is being processed ad add to parameter
     :returns object: either value (if it is non-None) or default title of the graph
     """
-    return value or "Plot of '{}' per '{}'".format(ctx.params['of_key'], ctx.params['per_key'])
+    return value or f"Plot of '{ctx.params['of_key']}' per '{ctx.params['per_key']}'"
 
 
 @click.command()
@@ -55,7 +55,7 @@ def process_title(ctx, _, value):
 @click.option('--view-in-browser', '-v', default=False, is_flag=True,
               help="Will show the graph in browser.")
 @pass_profile
-def scatter(profile, filename, view_in_browser, **kwargs):
+def scatter(profile: Profile, filename: str, view_in_browser: bool, **kwargs: Any) -> None:
     """Interactive visualization of resources and models in scatter plot format.
 
     Scatter plot shows resources as points according to the given parameters.
@@ -105,5 +105,5 @@ def scatter(profile, filename, view_in_browser, **kwargs):
     # Temporary solution for plotting multiple graphs from one command
     graphs = scatter_factory.create_from_params(profile, **kwargs)
     for uid, graph in graphs:
-        filename_uid = filename + '_{}.html'.format(profiles.sanitize_filepart(uid))
-        bokeh_helpers.save_graphs_in_column([graph], filename_uid, view_in_browser)
+        filename_uid = f"{filename}_{sanitize_filepart(uid)}.html"
+        view_helpers.save_view_graph(graph, filename_uid, view_in_browser)
