@@ -1,101 +1,98 @@
-from elftools.elf.elffile import ELFFile
+from dataclasses import dataclass, field
+from typing import List, Optional, Union, Any
+
 from elftools.common.py3compat import bytes2str
 from elftools.dwarf.die import DIE
-from typing import List 
+from elftools.dwarf.dwarfinfo import DWARFInfo
+from elftools.elf.elffile import ELFFile
 
 from perun.utils.exceptions import PinBinaryScanUnsuccessful
 
-#TODO: add typing
+VALUE_UNAVAILABLE_IN_DWARF = '[Not in DWARF]'
 
+
+@dataclass(repr=False)
 class FunctionArgument:
-
-    def __init__(self, arg_type: str, arg_name: str, arg_index: int):
-        self.type = arg_type
-        self.name = arg_name
-        self.index = arg_index
-        self.value = None
+    type: str
+    name: str
+    index: int
+    value: Optional[Union[int, float, str, bool]] = None
 
     def __repr__(self) -> str:
-        return f"{self.type} {self.name}:{self.index} = {self.value}"
+        return (
+            f'{self.index}: {self.type} {self.name} = '
+            f'{self.value if self.value else "Unknown value"}'
+        )
 
-    def __eq__(self, other) -> bool:
-        return self.name == other.name and self.type == other.type and \
-               self.index == other.index and self.value == other.value
 
-
+@dataclass(repr=False)
 class FunctionInfo:
+    name: str
+    arguments: List[FunctionArgument] = field(default_factory=list, compare=False)
 
-    def __init__(self, name: str, arguments: list = []):
-        self.name = name
-        self.arguments = arguments
-    
     def __repr__(self) -> str:
-        return f"func {self.name} - {self.arguments}"
-
-    def __eq__(self, other) -> bool:
-        return self.name == other.name
+        return (
+            f'function {self.name}('
+            f'{", ".join([argument.__repr__() for argument in self.arguments])})'
+        )
 
 
 def get_function_info_from_binary(filename: str) -> List[FunctionInfo]:
-    """ Function reads DWARF debug information form the specified binary file and extracts 
-    information about functions contained in it. Namely, function name and argument names,
-    types and indices.
+    """ Reads DWARF debug information form the specified binary file and extracts information
+    about functions contained in it. Namely, function name and argument names, types and indices.
 
-    :param str filename: binary with DWARF debug info one wants to analyze
+    :param str filename: path to binary with DWARF debug info one wants to analyze
 
-    :return list: list containing FunctionInfo objects representing each function contained in the binary file
+    :return list: list of FunctionInfo objects representing each function contained in
+                  the binary file
+    :raises PinBinaryScanUnsuccessful: if the DWARF is not present in specified binary file
     """
+    with open(filename, 'rb') as file_descriptor:
+        elf_file: ELFFile = ELFFile(file_descriptor)
 
-    with open(filename, 'rb') as f:
-        elffile = ELFFile(f)
-
-        if not elffile.has_dwarf_info():
+        if not elf_file.has_dwarf_info():
             # File has no DWARF info
             raise PinBinaryScanUnsuccessful
 
-        dwarf_info = elffile.get_dwarf_info()
+        dwarf_info: DWARFInfo = elf_file.get_dwarf_info()
 
-        functions = []
-        functions_cnt = 0
-        function_names = set()  # tuple[name, index]
-        for compilation_unite in dwarf_info.iter_CUs():
-            # Start with the top Debugging Information Entry (DIE), the root for this Compile Unit's DIE tree
+        functions: List[FunctionInfo] = []
+        functions_cnt: int = 0
+        for compilation_unit in dwarf_info.iter_CUs():
+            # Start with the top Debugging Information Entry (DIE), the root for this Compile
+            # Unit's DIE tree
             try:
-                top_DIE = compilation_unite.get_top_DIE()
+                top_die: DIE = compilation_unit.get_top_DIE()
             except Exception:
-                #FIXME exception - this fails sometimes (needs more testing to determine when)
+                # FIXME the get_top_DIE fails sometimes
                 raise PinBinaryScanUnsuccessful
 
-            # FIXME: temporary solution for duplicate functions
-            new_functions = _get_function_info_from_die(top_DIE)
-            for function in new_functions:
-                found = False
-                for function_name, idx in function_names:
-                    if function_name == function.name:
+            # FIXME: Temporary solution for duplicate functions
+            new_functions: List[FunctionInfo] = _get_function_info_from_die(top_die)
+            for new_function in new_functions:
+                found: bool = False
+                for idx, existing_function in enumerate(functions):
+                    if existing_function.name == new_function.name:
                         found = True
-                        same_function = functions[idx]
-                        for arg1, arg2 in zip(same_function.arguments, function.arguments):
-                            if arg2.name != arg1.name and arg1.name == '[No name in DWARF]':
-                                functions[idx] = function
+                        for existing_argument, new_argument in zip(existing_function.arguments,
+                                                                   new_function.arguments):
+                            if (existing_argument.name != new_argument.name and
+                                    existing_argument.name == VALUE_UNAVAILABLE_IN_DWARF):
+                                functions[idx] = new_function
                                 break
                         break
+
                 if not found:
-                    functions.append(function)
+                    functions.append(new_function)
                     functions_cnt += 1
-                    function_names.add((function.name, functions_cnt-1))
-
-
-
-
-
 
     return functions
 
 
 def _get_arguments_info_from_die(subprogram_die: DIE) -> List[FunctionArgument]:
-    """ Gathers information about arguments from specified Debugging Information Entry.
+    """ Gathers information about arguments from specified Debugging Information Entry (DIE).
 
-    Function expects subprogram DIE and iterates over its children to find all the arguments DIEs
+    Function expects subprogram DIE and iterates over its children to find all the argument DIEs
     and gather information about the name, type and index for each of them. Arguments are skipped
     when their type couldn't be retrieved.
 
@@ -103,32 +100,29 @@ def _get_arguments_info_from_die(subprogram_die: DIE) -> List[FunctionArgument]:
 
     :return List: list with information about arguments as FunctionArgument object
     """
-
-    argument_index = -1
-    function_arguments = []
+    argument_index: int = 0
+    function_arguments: List[FunctionArgument] = []
 
     for subprogram_child in subprogram_die.iter_children():
-        
         if subprogram_child.tag == 'DW_TAG_formal_parameter':
-            argument_index += 1
 
             # Get argument type
-            argument_type_die = subprogram_child.get_DIE_from_attribute('DW_AT_type')
-            argument_type = _get_type_from_die(argument_type_die)
-            if not argument_type: 
+            argument_type_die: DIE = subprogram_child.get_DIE_from_attribute('DW_AT_type')
+            argument_type: str = _get_type_from_die(argument_type_die)
+            if not argument_type:
                 # Skip an argument, when debug data isn't available
+                argument_index += 1
                 continue
-            
+
             # Get argument name
             try:
-                argument_name = bytes2str(subprogram_child.attributes['DW_AT_name'].value)
+                argument_name: str = bytes2str(subprogram_child.attributes['DW_AT_name'].value)
             except KeyError:
-                argument_name = '[No name in DWARF]'
+                argument_name = VALUE_UNAVAILABLE_IN_DWARF
 
-            function_argument = FunctionArgument(arg_type=argument_type, 
-                                                 arg_name=argument_name, 
-                                                 arg_index=argument_index)
-            function_arguments.append(function_argument)
+            function_arguments.append(
+                FunctionArgument(argument_type, argument_name, argument_index))
+            argument_index += 1
 
     return function_arguments
 
@@ -136,64 +130,63 @@ def _get_arguments_info_from_die(subprogram_die: DIE) -> List[FunctionArgument]:
 def _get_function_info_from_die(die: DIE) -> List[FunctionInfo]:
     """ Gathers information about functions from specified Debugging Information Entry. 
 
-    Function iterates over children of the specified DIE searching for functions and extracts function name and 
-    its argument names, types and indices the underlying DWARF structures.
+    Function iterates over children of the specified DIE searching for functions and extracts
+    function name and its argument names, types and indices the underlying DWARF structures.
 
-    :param DIE die: the debugging information entry from which one wants to extract information about functions
+    :param DIE die: the debugging information entry from which one wants to extract information
+                    about functions
 
     :return list: list containing information about each function as FunctionInfo object
     """
-
-    functions_in_die = []
+    functions_in_die: List[FunctionInfo] = []
 
     for child in die.iter_children():
         if child.tag == 'DW_TAG_subprogram':
             # Get function name
             try:
-                function_name_attribute = child.attributes['DW_AT_name']
+                function_name_attribute: Any = child.attributes['DW_AT_name']
             except KeyError:
-                #NOTE: function name identifies the function, so if this information can't be 
-                # retrieved from the subprogram child DIE the function is skipped entirely.
+                # NOTE: function name is a key identifier of a function, so if this information
+                # can't be retrieved from the subprogram child DIE the function is skipped entirely.
                 continue
-            function_name = bytes2str(function_name_attribute.value) 
+            function_name: str = bytes2str(function_name_attribute.value)
 
             # Get arguments information
-            function_arguments = _get_arguments_info_from_die(child)
+            function_arguments: List[FunctionArgument] = _get_arguments_info_from_die(child)
 
-            function_info = FunctionInfo(name=function_name, arguments=function_arguments) 
+            function_info: FunctionInfo = FunctionInfo(name=function_name,
+                                                       arguments=function_arguments)
             functions_in_die.append(function_info)
     return functions_in_die
 
 
-
 def _get_type_from_die(type_die: DIE) -> str:
-    """ Extracts type from Debugging Information Entry to a string.
+    """ Extracts type from Debugging Information Entry (DIE) to a string.
 
-    :param DIE type_die: debugging information entry containing information about a type
+    :param DIE type_die: DIE containing information about a type
 
-    :return str: type in str or empty if not retrievable
+    :return str: string containing type or empty string if not retrievable
     """
 
     if type_die.tag == 'DW_TAG_base_type':
-        type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
+        type_str: str = bytes2str(type_die.attributes['DW_AT_name'].value)
         type_str = type_str if type_str != '_Bool' else 'bool'
         return type_str
 
     elif type_die.tag == 'DW_TAG_pointer_type':
         if 'DW_AT_type' in type_die.attributes:
-            type_die = type_die.get_DIE_from_attribute('DW_AT_type')
-            type_str = _get_type_from_die(type_die)
+            type_die: DIE = type_die.get_DIE_from_attribute('DW_AT_type')
+            type_str: str = _get_type_from_die(type_die)
             if type_str:
-                return type_str + '*'
+                return f'{type_str}*'
 
     elif type_die.tag == 'DW_TAG_const_type':
         try:
-            type_die = type_die.get_DIE_from_attribute('DW_AT_type')
-            type_str = bytes2str(type_die.attributes['DW_AT_name'].value)
+            type_die: DIE = type_die.get_DIE_from_attribute('DW_AT_type')
+            type_str: str = bytes2str(type_die.attributes['DW_AT_name'].value)
         except KeyError:
             return ''
-
         type_str = type_str if type_str != '_Bool' else 'bool'
-        return 'const ' + type_str
-    
+        return f'const {type_str}'
+
     return ''

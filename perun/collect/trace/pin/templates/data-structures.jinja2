@@ -1,6 +1,10 @@
 enum Granularity { G_RTN, G_BBL };
-enum Location { L_BEFORE, L_AFTER };
+enum AnalysisLocation { L_BEFORE, L_AFTER };
+{% if mode in ['time', 'instructions'] %}
+enum BasicBlockLocation { BBL_AT_RTN_START, BBL_IN_RTN, BBL_AT_RTN_END };
+{% endif -%}
 
+{% if mode in ['time', 'instructions'] -%}
 class SourceCodeLocation {
 public:
     INT32 line;
@@ -10,8 +14,9 @@ public:
 
     SourceCodeLocation(INS instruction);
 };
+{% endif -%}
 
-
+{% if mode in ['time', 'instructions'] -%}
 class SourceFilesMap {
 public:
     std::unordered_map<std::string, UINT32> sourceFiles;
@@ -25,8 +30,9 @@ public:
     UINT32 addFile(std::string file);
     std::string dumpMap();
 };
+{% endif -%}
 
-{% if not collect_basic_blocks_ony %}
+{% if collect_functions -%}
 class RoutineMetadata {
 public:
     ADDRINT address;
@@ -36,9 +42,9 @@ public:
 
     RoutineMetadata(RTN routine);
 };
-{% endif %}
+{% endif -%}
 
-{% if collect_basic_blocks or collect_basic_blocks_only %}
+{% if collect_basic_blocks -%}
 class BasicBlockMetadata {
 public:
     ADDRINT address;
@@ -46,8 +52,8 @@ public:
     UINT32 instructionsCount;
     std::vector<INT32> sourceCodeLines;
     UINT32 sourceCodeFileId;
-    int isFunctionEnd;
+    BasicBlockLocation locationInRoutine;
 
     BasicBlockMetadata(BBL basicBlock);
 };
-{% endif %}
+{%- endif %}

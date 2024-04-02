@@ -122,8 +122,11 @@ def after(**kwargs):
     WATCH_DOG.info(
         "Processing raw performance data. Note that this may take a while for large raw data files."
     )
-    data_size = os.stat(kwargs["config"].engine.dynamic_data).st_size
-    data_size += os.stat(kwargs["config"].engine.static_data).st_size
+    if kwargs['config'].engine.name == 'pin':
+        data_size: int = os.stat(kwargs["config"].engine.dynamic_data).st_size
+        data_size += os.stat(kwargs["config"].engine.static_data).st_size
+    else:
+        data_size: int = os.stat(kwargs["config"].engine.data).st_size
     metrics.add_metric("data_size", data_size)
     WATCH_DOG.info("Raw data file size: {}".format(utils.format_file_size(data_size)))
 
@@ -166,8 +169,7 @@ def teardown(**kwargs):
         config.engine.cleanup(**kwargs)
 
     metrics.end_timer("total_time")
-    #metrics.save_separate("details/{}.json".format(metrics.Metrics.metrics_id), func_summary)
-    # metrics.save()
+    #metrics.save()
     stdout.done("\n\n")
     return CollectStatus.OK, "", dict(kwargs)
 

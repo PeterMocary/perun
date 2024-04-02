@@ -1,5 +1,5 @@
-{%- if collect_basic_blocks or collect_basic_blocks_only %}
-{#- NOTE: Probed mode doesn't support lower granularity than routines, therefore this part doesn't need to handle probed mode differences #}
+{%- if mode in ['time', 'instructions'] and collect_basic_blocks -%}
+{# NOTE: Probed mode doesn't support lower granularity than routines, therefore this part doesn't need to handle probed mode differences #}
 VOID instrumentBasicBlocksInTrace(TRACE trace, VOID *v) {
     RTN routine = TRACE_Rtn(trace);
 
@@ -24,8 +24,8 @@ VOID instrumentBasicBlocksInTrace(TRACE trace, VOID *v) {
                        IARG_FAST_ANALYSIS_CALL,
                        IARG_ADDRINT, basicBlockIterator->first,
                        IARG_THREAD_ID,
-                       IARG_UINT32, Location::L_BEFORE,
-                       IARG_UINT32, basicBlockIterator->second.isFunctionEnd,
+                       IARG_UINT32, AnalysisLocation::L_BEFORE,
+                       IARG_UINT32, basicBlockIterator->second.locationInRoutine,
                        IARG_END);
 
 
@@ -41,14 +41,14 @@ VOID instrumentBasicBlocksInTrace(TRACE trace, VOID *v) {
                        IARG_FAST_ANALYSIS_CALL,
                        IARG_ADDRINT, basicBlockIterator->first,
                        IARG_THREAD_ID,
-                       IARG_UINT32, Location::L_AFTER,
-                       IARG_UINT32, basicBlockIterator->second.isFunctionEnd,
+                       IARG_UINT32, AnalysisLocation::L_AFTER,
+                       IARG_UINT32, basicBlockIterator->second.locationInRoutine,
                        IARG_END);
     }
 }
-{% endif -%}
+{%- endif %}
 
-{%- if not collect_basic_blocks_only %}
+{%- if mode == 'time' and collect_functions -%}
 VOID instrumentRoutinesInImage(IMG img, VOID* v) {
     // Skip images that are not from main executable
     if (!IMG_IsMainExecutable(img)) { return; }
@@ -114,7 +114,7 @@ VOID instrumentRoutinesInImage(IMG img, VOID* v) {
                                                                IARG_FAST_ANALYSIS_CALL,
                                                                IARG_UINT32, routineIndex,
                                                                {% if not probed %}IARG_THREAD_ID,{% endif %}
-                                                               IARG_UINT32, Location::L_BEFORE,
+                                                               IARG_UINT32, AnalysisLocation::L_BEFORE,
                                                                IARG_END);
             }
             {% else %} {# Don't collect arguments #}
@@ -122,7 +122,7 @@ VOID instrumentRoutinesInImage(IMG img, VOID* v) {
                                                            IARG_FAST_ANALYSIS_CALL,
                                                            IARG_UINT32, routineIndex,
                                                            {% if not probed %}IARG_THREAD_ID,{% endif %}
-                                                           IARG_UINT32, Location::L_BEFORE,
+                                                           IARG_UINT32, AnalysisLocation::L_BEFORE,
                                                            IARG_END);
             {%- endif %}
             RTN_InsertCall{% if probed %}Probed{% endif %}(routine, IPOINT_AFTER, (AFUNPTR)routineAnalysis,
@@ -130,12 +130,126 @@ VOID instrumentRoutinesInImage(IMG img, VOID* v) {
                            {% if probed %}IARG_PROTOTYPE, after_f,{% endif %}
                            IARG_UINT32, routineIndex,
                            {% if not probed %}IARG_THREAD_ID,{% endif %}
-                           IARG_UINT32, Location::L_AFTER,
+                           IARG_UINT32, AnalysisLocation::L_AFTER,
                            IARG_END);
-
             {% if not probed %}RTN_Close(routine);{% endif %}
             {%- if probed %}PROTO_Free(after_f);{% endif %}
         }
     }
 }
 {% endif -%}
+
+{% if mode == 'memory' %}
+VOID instrumentMemoryRoutinesInImage(IMG img, VOID* v) {
+    // Find the malloc() function and instrument it.
+    RTN mallocRtn = RTN_FindByName(img, MALLOC);
+    if (RTN_Valid(mallocRtn)) {
+        ADDRINT mallocRtnAddress = RTN_Address(mallocRtn);
+        RTN_Open(mallocRtn);
+        RTN_InsertCall(mallocRtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_malloc,
+                       IARG_ADDRINT, mallocRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+                       IARG_RETURN_IP,
+                       IARG_END);
+        RTN_InsertCall(mallocRtn, IPOINT_AFTER, (AFUNPTR)rtn_analysis_after_malloc,
+                       IARG_ADDRINT, mallocRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCRET_EXITPOINT_REFERENCE,
+                       IARG_END);
+        RTN_Close(mallocRtn);
+    }
+
+    // Find the calloc() function and instrument it.
+    RTN callocRtn = RTN_FindByName(img, CALLOC);
+    if (RTN_Valid(callocRtn)) {
+        ADDRINT callocRtnAddress = RTN_Address(callocRtn);
+        RTN_Open(callocRtn);
+        RTN_InsertCall(callocRtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_calloc,
+                       IARG_ADDRINT, callocRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+                       IARG_RETURN_IP,
+                       IARG_END);
+        RTN_InsertCall(callocRtn, IPOINT_AFTER, (AFUNPTR)rtn_analysis_after_calloc,
+                       IARG_ADDRINT, callocRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCRET_EXITPOINT_REFERENCE,
+                       IARG_END);
+        RTN_Close(callocRtn);
+    }
+
+    // Find the realloc() function and instrument it.
+    RTN reallocRtn = RTN_FindByName(img, REALLOC);
+    if (RTN_Valid(reallocRtn)) {
+        ADDRINT reallocRtnAddress = RTN_Address(reallocRtn);
+        RTN_Open(reallocRtn);
+        RTN_InsertCall(reallocRtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_realloc,
+                       IARG_ADDRINT, reallocRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 1,
+                       IARG_RETURN_IP,
+                       IARG_END);
+        RTN_InsertCall(reallocRtn, IPOINT_AFTER, (AFUNPTR)rtn_analysis_after_realloc,
+                       IARG_ADDRINT, reallocRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCRET_EXITPOINT_REFERENCE,
+                       IARG_END);
+        RTN_Close(reallocRtn);
+    }
+
+    // Find the free() function.
+    RTN freeRtn = RTN_FindByName(img, FREE);
+    if (RTN_Valid(freeRtn)) {
+        ADDRINT freeRtnAddress = RTN_Address(freeRtn);
+        RTN_Open(freeRtn);
+        RTN_InsertCall(freeRtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_free,
+                       IARG_ADDRINT, freeRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+                       IARG_RETURN_IP,
+                       IARG_END);
+        RTN_Close(freeRtn);
+    }
+
+    // NOTE: The new operator calls malloc internally so it doesn't have to be
+    // instrumented although the instrumentation works as expected, only the
+    // name of the operator is cryptic.
+    RTN newRtn = RTN_FindByName(img, NEW);
+    if (RTN_Valid(newRtn)) {
+        ADDRINT newRtnAddress = RTN_Address(newRtn);
+        RTN_Open(newRtn);
+        RTN_InsertCall(newRtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_new,
+                       IARG_ADDRINT, newRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+                       IARG_RETURN_IP,
+                       IARG_END);
+        RTN_InsertCall(newRtn, IPOINT_AFTER, (AFUNPTR)rtn_analysis_after_new,
+                       IARG_ADDRINT, newRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCRET_EXITPOINT_REFERENCE,
+                       IARG_END);
+        RTN_Close(newRtn);
+    }
+
+    // NOTE: The delete operator calls free internally, so it doesn't have to be
+    // instrumented although the instrumentation DOESN'T work as expected because
+    // the IPOINT_AFTER instrumentation doesn't trigger. Same as above the
+    // delete operator has different cryptic name in assembly.
+    RTN deleteRtn = RTN_FindByName(img, DELETE);
+    if (RTN_Valid(deleteRtn)) {
+        ADDRINT deleteRtnAddress = RTN_Address(deleteRtn);
+        RTN_Open(deleteRtn);
+        RTN_InsertCall(deleteRtn, IPOINT_BEFORE, (AFUNPTR)rtn_analysis_before_delete,
+                       IARG_ADDRINT, deleteRtnAddress,
+                       IARG_THREAD_ID,
+                       IARG_FUNCARG_ENTRYPOINT_REFERENCE, 0,
+                       IARG_RETURN_IP,
+                       IARG_END);
+        RTN_Close(deleteRtn);
+    }
+}
+{%- endif %}

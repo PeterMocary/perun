@@ -1,3 +1,4 @@
+{# This template expects that mode is set to 'time' #}
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -10,7 +11,7 @@
 #define DYNAMIC_DATA_FILE "{{ dynamic_data_file }}"
 #define STATIC_DATA_FILE "{{ static_data_file }}"
 
-{%- if collect_arguments %}
+{%- if collect_functions and collect_arguments %}
 #define FUNC_CNT {{ function_count }}
 std::string function_names[FUNC_CNT] { {{ function_names }} };
 {%- endif %}
@@ -20,13 +21,13 @@ PIN_MUTEX dynamicDataLock;
 std::ofstream dynamicData;
 std::ofstream staticData;
 
-{% include 'time-data-structures.jinja2' %}
+{% include 'data-structures.jinja2' %}
 
 SourceFilesMap sourceFiles;
-{% if not collect_basic_blocks_only -%}
+{% if collect_functions -%}
 std::vector<RoutineMetadata> routines;
 {% endif %}
-{% if collect_basic_blocks or collect_basic_blocks_only -%}
+{% if collect_basic_blocks -%}
 std::unordered_map<ADDRINT, BasicBlockMetadata> basicBlocks;
 {%- endif %}
 
@@ -34,7 +35,7 @@ std::unordered_map<ADDRINT, BasicBlockMetadata> basicBlocks;
 bool isBlacklistedRoutine(RTN routine) {
     std::vector<std::string> prefixBlacklist = {"__", "_init", "_start", "_fini", "_GLOBAL__sub_I__",
                                                 "frame_dummy", "register_tm_clones", "deregister_tm_clones",
-                                                "std::ios_base::Init::Init"};
+                                                "std::ios_base::Init::Init", "std::", "rand", "operator"};
     std::string routineName = PIN_UndecorateSymbolName(RTN_Name(routine), UNDECORATION_NAME_ONLY);
     for (auto& prefix : prefixBlacklist) {
         if (routineName.rfind(prefix, 0) == 0) {
@@ -77,7 +78,7 @@ SourceCodeLocation::SourceCodeLocation(INS instruction) {
     PIN_GetSourceLocation(address, &(this->column), &(this->line), &(this->fileName));
 }
 
-{% if not collect_basic_blocks_only %}
+{% if collect_functions %}
 RoutineMetadata::RoutineMetadata(RTN routine) {
     this->address = RTN_Address(routine);
     this->name = PIN_UndecorateSymbolName(RTN_Name(routine), UNDECORATION_NAME_ONLY);
@@ -98,12 +99,17 @@ RoutineMetadata::RoutineMetadata(RTN routine) {
 }
 {% endif %}
 
-{% if collect_basic_blocks or collect_basic_blocks_only %}
+{% if collect_basic_blocks -%}
 BasicBlockMetadata::BasicBlockMetadata(BBL basicBlock) {
     this->address = BBL_Address(basicBlock);
     this->routineName = PIN_UndecorateSymbolName(RTN_Name(INS_Rtn(BBL_InsHead(basicBlock))), UNDECORATION_NAME_ONLY);
     this->instructionsCount = BBL_NumIns(basicBlock);
-    this->isFunctionEnd = INS_IsRet(BBL_InsTail(basicBlock));
+    this->locationInRoutine = BasicBlockLocation::BBL_IN_RTN;
+    if (INS_IsRet(BBL_InsTail(basicBlock))) {
+        this->locationInRoutine = BasicBlockLocation::BBL_AT_RTN_END;
+    } else if (INS_IsCall(BBL_InsTail(basicBlock))) {
+        this->locationInRoutine = BasicBlockLocation::BBL_AT_RTN_START;
+    }
 
     // Gather the complete location of the basic block instructions
     // NOTE: The source code file is extracted from the first instruction
@@ -127,8 +133,7 @@ BasicBlockMetadata::BasicBlockMetadata(BBL basicBlock) {
         }
     }
 }
-{% endif %}
-
+{% endif -%}
 
 // Function is called when the application exits and cleans up the used resources.
 VOID fini(INT32 code, VOID* v){
@@ -138,7 +143,7 @@ VOID fini(INT32 code, VOID* v){
 
     staticData << "#Files" << std::endl << sourceFiles.dumpMap();
 
-    {% if not collect_basic_blocks_only %}
+    {% if collect_functions -%}
     staticData << "#Routines" << std::endl;
     UINT32 routineId = 0;  // The ID is based on the index in global routines vector
     for (auto& routineMetadata : routines) {
@@ -150,13 +155,14 @@ VOID fini(INT32 code, VOID* v){
                    << std::endl;
         routineId++;
     }
-    {% endif %}
+    {% endif -%}
 
-    {% if collect_basic_blocks or collect_basic_blocks_only %}
+    {% if collect_basic_blocks -%}
     staticData << "#Basic blocks" << std::endl;
     for (auto& basicBlock: basicBlocks) {
         staticData << basicBlock.first  // Basic block ID - address
                    << ";" << basicBlock.second.routineName  // Name of the routine the basic block belongs to
+                   << ";" << basicBlock.second.locationInRoutine // The location within a routine (start/end/body)
                    << ";" << basicBlock.second.instructionsCount  // Number of instructions in the basic block
                    << ";" << basicBlock.second.sourceCodeFileId;  // ID of file where is the basic block located
         for (auto& lineNumber : basicBlock.second.sourceCodeLines) {  // Lines that basic block maps to
@@ -175,8 +181,8 @@ VOID fini(INT32 code, VOID* v){
 }
 
 
-{% include 'time-analysis.jinja2' %}
+{% include 'analysis-functions.jinja2' %}
 
-{% include 'time-instrumentation.jinja2' %}
+{% include 'instrumentation-functions.jinja2' %}
 
-{% include 'main.jinja2' %}
+{% include 'main-function.jinja2' %}
