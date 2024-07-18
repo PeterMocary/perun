@@ -112,11 +112,11 @@ class Configuration:
         if self.engine == 'stap':
             self.engine = SystemTapEngine(self)
         elif self.engine == 'ebpf':
-            from perun.collect.trace.ebpf.engine import BpfEngine
-            self.engine = BpfEngine(self)
+            import perun.collect.trace.ebpf.engine as ebpf
+            self.engine = ebpf.BpfEngine(self)
         else:
-            from perun.collect.trace.pin.engine import PinEngine
-            self.engine = PinEngine(self)
+            import perun.collect.trace.pin.engine as pin
+            self.engine = pin.PinEngine(self)
 
     def get_functions(self):
         """Access the configuration of the function probes

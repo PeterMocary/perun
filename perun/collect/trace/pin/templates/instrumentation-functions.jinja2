@@ -18,7 +18,7 @@ VOID instrumentBasicBlocksInTrace(TRACE trace, VOID *v) {
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
         basicBlockId = BBL_Address(bbl);
         basicBlockMetadata = BasicBlockMetadata(bbl);
-        basicBlockIterator = basicBlocks.insert(std::make_pair(basicBlockId, basicBlockMetadata)).first;
+        basicBlockIterator = basicBlocks.emplace(basicBlockId, basicBlockMetadata).first;
         // Instrument the first instruction of the basic block
         INS_InsertCall(BBL_InsHead(bbl), IPOINT_BEFORE, (AFUNPTR)basicBlockAnalysis,
                        IARG_FAST_ANALYSIS_CALL,

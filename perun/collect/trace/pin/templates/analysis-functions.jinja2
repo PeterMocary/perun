@@ -5,7 +5,7 @@ VOID PIN_FAST_ANALYSIS_CALL routineAnalysis(UINT32 routineMetadataIndex{% if not
     UINT64 timeStamp = 0;
     PIN_MutexLock(&dynamicDataLock);
     OS_Time(&timeStamp);
-    dynamicData << Granularity::G_RTN << location  // Information about granularity and location - 2 flags
+    dynamicData << Granularity::G_RTN << location // Granularity and loaction flags
                 << ";" << routineMetadataIndex  // Routine ID
                 << ";" << {% if probed %}PIN_GetTid(){% else %}tid{% endif %}  // Thread ID
                 << ";" << PIN_GetPid()  // Process ID
@@ -25,7 +25,7 @@ VOID PIN_FAST_ANALYSIS_CALL basicBlockAnalysis(ADDRINT basicBlockId, THREADID ti
     UINT64 timeStamp;
     OS_Time(&timeStamp);
     {% endif -%}
-    dynamicData << Granularity::G_BBL << analysisLocation // Information about granularity and location - 2 flags
+    dynamicData << Granularity::G_BBL << analysisLocation // Granularity and loaction flags
                 << ";" << basicBlockId  // Basic block ID - address
                 << ";" << tid  // Thread ID
                 << ";" << PIN_GetPid()  // Process ID
@@ -46,7 +46,7 @@ VOID PIN_FAST_ANALYSIS_CALL routineAnalysisBefore_{{ function.name }}(UINT32 rou
     UINT64 timeStamp = 0;
     PIN_MutexLock(&dynamicDataLock);
     OS_Time(&timeStamp);
-    dynamicData << Granularity::G_RTN << AnalysisLocation::L_BEFORE << 0  // Information about granularity and location - 3 flags (last empty)
+    dynamicData << Granularity::G_RTN << AnalysisLocation::L_BEFORE // Granularity and loaction flags
                 << ";" << routineMetadataIndex  // Routine ID
                 << ";" << {% if probed %}PIN_GetTid(){% else %}tid{% endif %}  // Thread ID
                 << ";" << PIN_GetPid()  // Process ID

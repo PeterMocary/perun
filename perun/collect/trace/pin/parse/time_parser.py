@@ -148,8 +148,11 @@ class PinTimeOutputParser(PinDynamicOutputParser):
         entry: List[str] = self._current_raw_entry.strip().split(';')
 
         # Parse base format common for both functions and basic blocks
-        data: Dict[str, int] = dict(zip(TimeDataEntry.FORMAT[0], [int(flag) for flag in entry[0]]))
-        data |= dict(zip(TimeDataEntry.FORMAT[1:], [int(element) for element in entry[1:]]))
+        flags: str = entry[0]
+        other_base_format_elements: List[str] = entry[1:len(TimeDataEntry.FORMAT)]
+        other_base_format_keys: List[str] = TimeDataEntry.FORMAT[1:]
+        data: Dict[str, int] = dict(zip(TimeDataEntry.FORMAT[0], [int(flag) for flag in flags]))
+        data |= dict(zip(other_base_format_keys, [int(element) for element in other_base_format_elements]))
         data_entry: TimeDataEntry = TimeDataEntry(**data)
 
         # Parse the optional arguments at the end of a function entry

@@ -6,12 +6,11 @@ import subprocess
 from typing import List, Dict, Union, Optional, Generator, Any
 
 import perun.collect.trace.collect_engine as engine
-from collect.trace.pin.parse import ProgramData
-from perun.collect.trace.configuration import Configuration
+from perun.collect.trace.pin.parse import ProgramData
 from perun.utils.log import msg_to_stdout
 from perun.collect.trace.values import check
 from perun.logic.pcs import get_tmp_directory
-import perun.utils as utils
+from perun.utils.external.commands import run_safely_external_command
 from perun.collect.trace.pin.parse import (
     PinDynamicOutputParser,
     PinStaticOutputParser,
@@ -44,7 +43,7 @@ class PinEngine(engine.CollectEngine):
 
     name = 'pin'
 
-    def __init__(self, config: Configuration) -> None:
+    def __init__(self, config) -> None:
         """ Constructs the engine object.
 
         :param Configuration config: collection parameters
@@ -140,9 +139,10 @@ class PinEngine(engine.CollectEngine):
         self._assemble_pintool(**configuration)
 
         msg_to_stdout('[Debug]: Building the pintool.', 3)
-        utils.run_safely_external_command(f'make -C {get_tmp_directory()}')
+        run_safely_external_command(f'make -C {get_tmp_directory()}')
+        msg_to_stdout('[Debug]: The pintool is built.', 3)
 
-    def collect(self, config: Configuration, **kwargs: Dict[str, Any]) -> None:
+    def collect(self, config, **kwargs: Dict[str, Any]) -> None:
         """ Collect the raw performance data using the assembled pintool.
 
         :param Configuration config: the configuration object
@@ -156,7 +156,7 @@ class PinEngine(engine.CollectEngine):
 
         msg_to_stdout(f'[Debug]: Running the pintool with command: {collection_cmd}.', 3)
         try:
-            utils.run_safely_external_command(collection_cmd)
+            run_safely_external_command(collection_cmd)
         except subprocess.CalledProcessError:
             raise PinBinaryInstrumentationFailed
 
@@ -201,17 +201,15 @@ class PinEngine(engine.CollectEngine):
 
         return dynamic_parser.parse_dynamic_data_file()
 
-    def cleanup(self, config: Configuration, **kwargs: Dict[str, Any]) -> None:
+    def cleanup(self, config, **kwargs: Dict[str, Any]) -> None:
         """ Cleans up all the engine-related resources such as files, processes, locks, etc.
 
         :param Configuration config: collection parameters
         """
         msg_to_stdout('[Info]: Cleaning up.', 2)
-
         if os.path.exists(f'{get_tmp_directory()}/obj-intel64'):
             msg_to_stdout('[Debug]: Removing the built pintool.', 3)
-            utils.run_safely_external_command(f'make -C {get_tmp_directory()} clean-obj-intel64')
-
+            run_safely_external_command(f'make -C {get_tmp_directory()} clean-obj-intel64')
         msg_to_stdout(f'[Debug]: {"Store" if config.keep_temps or config.zip_temps else "Remove"} '
                       'the generated pintool source code and collected data.', 3)
         file_names: List[str] = ['dynamic_data', 'static_data', 'pintool_src', 'pintool_makefile']
@@ -238,7 +236,7 @@ class PinEngine(engine.CollectEngine):
         :raises InvalidParameterException: when an invalid parameter is detected
         """
         env: Environment = Environment(
-            loader=PackageLoader('perun', package_path='collect/trace/pin/templates'),
+            loader=PackageLoader('perun', 'collect/trace/pin/templates'),
             autoescape=select_autoescape()
         )
 
