@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 
 from perun.profile.convert import resources_to_pandas_dataframe
 from perun.profile.factory import pass_profile, Profile
-from utils.log import msg_to_stdout
+from perun.utils.log import msg_to_stdout
 
 
 def _extract_function_information(profile: Profile) -> pd.DataFrame:
