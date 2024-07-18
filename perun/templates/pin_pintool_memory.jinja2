@@ -14,7 +14,7 @@
 PIN_MUTEX dynamicDataLock;
 std::ofstream dynamicData;
 
-{% include 'data-structures.jinja2' %}
+{% include 'pin_data_structures.jinja2' %}
 
 // Function is called when the application exits and cleans up the used resources.
 VOID fini(INT32 code, VOID* v){
@@ -22,8 +22,8 @@ VOID fini(INT32 code, VOID* v){
     PIN_MutexFini(&dynamicDataLock);
 }
 
-{% include 'analysis-functions.jinja2' %}
+{% include 'pin_analysis_functions.jinja2' %}
 
-{% include 'instrumentation-functions.jinja2' %}
+{% include 'pin_instrumentation_functions.jinja2' %}
 
-{% include 'main-function.jinja2' %}
+{% include 'pin_main_function.jinja2' %}

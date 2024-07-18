@@ -21,7 +21,7 @@ PIN_MUTEX dynamicDataLock;
 std::ofstream dynamicData;
 std::ofstream staticData;
 
-{% include 'data-structures.jinja2' %}
+{% include 'pin_data_structures.jinja2' %}
 
 SourceFilesMap sourceFiles;
 {% if collect_functions -%}
@@ -181,8 +181,8 @@ VOID fini(INT32 code, VOID* v){
 }
 
 
-{% include 'analysis-functions.jinja2' %}
+{% include 'pin_analysis_functions.jinja2' %}
 
-{% include 'instrumentation-functions.jinja2' %}
+{% include 'pin_instrumentation_functions.jinja2' %}
 
-{% include 'main-function.jinja2' %}
+{% include 'pin_main_function.jinja2' %}

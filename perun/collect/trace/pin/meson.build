@@ -11,5 +11,4 @@ py3.install_sources(
     subdir: perun_collect_trace_pin_dir,
 )
 
-subdir('templates')
 subdir('parse')
