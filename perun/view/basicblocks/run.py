@@ -7,14 +7,12 @@ import click
 import os
 from perun.profile.factory import pass_profile, Profile
 import perun.profile.convert as convert
-from perun.utils.log import msg_to_stdout
 import bokeh.palettes as palettes
 from bokeh.plotting import figure, save, output_file
 from bokeh.layouts import row, column
-from bisect import insort, bisect
 import numpy as np
 import pandas as pd
-from typing import Union, List, Optional
+from typing import List, Optional
 
 
 @dataclass
@@ -197,7 +195,7 @@ def extract_relevant_data_to_internal_representation(
     return function_data
 
 
-def create_sunburst_graph(function_data, type="time"):
+def create_sunburst_graph(function_data, graph_type="time"):
 
     # Create color palettes
     num_of_bbls = len(function_data[0].basic_blocks)
@@ -246,7 +244,7 @@ def create_sunburst_graph(function_data, type="time"):
     colors = []
     func_percentage_groups: List[int] = []
     for function in function_data:
-        if type == "time":
+        if graph_type == "time":
             func_percentage_groups.append(function.function_time_percentage_group)
         else:
             func_percentage_groups.append(function.function_execs_percentage_group)
@@ -260,7 +258,7 @@ def create_sunburst_graph(function_data, type="time"):
     for bbl_idx, offset_multip in enumerate(bbl_colum_offset_multypliers):
         func_percentage_groups = []
         for function in function_data:
-            if type == "time":
+            if graph_type == "time":
                 func_percentage_groups.append(function.basic_blocks[bbl_idx].runtime_percentage)
             else:
                 func_percentage_groups.append(function.basic_blocks[bbl_idx].execs_percentage)
@@ -332,7 +330,7 @@ def create_sunburst_graph(function_data, type="time"):
         text_align="left",
         text_baseline="middle",
     )
-    heading_text = "Function time" if type == "time" else "Function executions"
+    heading_text = "Function time" if graph_type == "time" else "Function executions"
     p.text(-100, 15, text=[heading_text], text_font_size="10pt", text_align="left")
 
     # Basic blocks color labels
@@ -357,7 +355,7 @@ def create_sunburst_graph(function_data, type="time"):
         text_align="left",
     )
 
-    heading_text = "Basic block time" if type == "time" else "Basic block executions"
+    heading_text = "Basic block time" if graph_type == "time" else "Basic block executions"
     p.text(0, outer_radius + 2, text=[heading_text], text_font_size="10pt", text_align="center")
 
     # Basic blocks mapping
@@ -371,7 +369,7 @@ def create_sunburst_graph(function_data, type="time"):
             if key not in table_data.keys():
                 table_data[key] = []
 
-            location: str = f"Not a BBL"
+            location: str = "Not a BBL"
             if bbl.src_lines:
                 location = f"{bbl.src_lines}"
 
