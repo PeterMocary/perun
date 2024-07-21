@@ -17,7 +17,6 @@ import operator
 
 # Third-Party Imports
 import click
-import re
 
 # Perun Imports
 from perun.logic import config

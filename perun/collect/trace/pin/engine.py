@@ -154,7 +154,7 @@ class PinEngine(engine.CollectEngine):
         run_safely_external_command(f"make -C {get_tmp_directory()}")
         msg_to_stdout("[Debug]: The pintool is built.", 3)
 
-    def collect(self, config, **kwargs: Dict[str, Any]) -> None:
+    def collect(self, **kwargs: Dict[str, Any]) -> None:
         """Collect the raw performance data using the assembled pintool.
 
         :param Configuration config: the configuration object
@@ -162,6 +162,7 @@ class PinEngine(engine.CollectEngine):
         :raises PinBinaryInstrumentationFailed: execution of pin with generated pintool failed
         """
         msg_to_stdout("[Info]: Collecting the performance data.", 2)
+        config = kwargs["config"]
         collection_cmd: str = (
             f"{self.__pin_root}/pin "
             f"-t {get_tmp_directory()}/obj-intel64/pintool.so "
@@ -174,7 +175,7 @@ class PinEngine(engine.CollectEngine):
         except subprocess.CalledProcessError:
             raise PinBinaryInstrumentationFailed
 
-    def transform(self, config, **kwargs) -> Generator[Dict[str, Union[str, int]], None, None]:
+    def transform(self, **kwargs) -> Generator[Dict[str, Union[str, int]], None, None]:
         """Transform the raw performance data into a resources as used in the profiles.
 
         :param Configuration config: the configuration object
@@ -182,6 +183,7 @@ class PinEngine(engine.CollectEngine):
         :return iterable: a generator object that produces the resources
         """
         msg_to_stdout("[Info]: Transforming the collected data to perun profile.", 2)
+        config = kwargs["config"]
 
         # Transform function information from DWARF debug info into a map based on name
         function_arguments_map = {}
@@ -222,12 +224,13 @@ class PinEngine(engine.CollectEngine):
 
         return dynamic_parser.parse_dynamic_data_file()
 
-    def cleanup(self, config, **kwargs: Dict[str, Any]) -> None:
+    def cleanup(self, **kwargs: Dict[str, Any]) -> None:
         """Cleans up all the engine-related resources such as files, processes, locks, etc.
 
         :param Configuration config: collection parameters
         """
         msg_to_stdout("[Info]: Cleaning up.", 2)
+        config = kwargs["config"]
         if os.path.exists(f"{get_tmp_directory()}/obj-intel64"):
             msg_to_stdout("[Debug]: Removing the built pintool.", 3)
             run_safely_external_command(f"make -C {get_tmp_directory()} clean-obj-intel64")

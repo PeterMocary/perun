@@ -289,8 +289,8 @@ class PinTimeOutputParser(PinDynamicOutputParser):
 
         if self.basic_block_backlog:
             msg_to_stdout(
-                f"[DEBUG]: Basic blocks backlog contains "
-                "{len(self.basic_block_backlog)} unpaired entries.",
+                "[DEBUG]: Basic blocks backlog contains "
+                f"{len(self.basic_block_backlog)} unpaired entries.",
                 3,
             )
 
