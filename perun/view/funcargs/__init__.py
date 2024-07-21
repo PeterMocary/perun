@@ -5,6 +5,6 @@ Displays simple scatter plot with ability to filter out functions or squash
 their arguments into single graph
 """
 
-SUPPORTED_PROFILES = ['mixed']
+SUPPORTED_PROFILES = ["mixed"]
 
-__author__ = 'Peter Močáry'
+__author__ = "Peter Močáry"

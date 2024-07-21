@@ -69,5 +69,5 @@ def lazy_get_cli_commands() -> list[Callable[..., Any]]:
         tableof_run.tableof,
         funcargs_run.funcargs,
         treemap_run.treemap,
-        basicblocks_run.basicblocks
+        basicblocks_run.basicblocks,
     ]
