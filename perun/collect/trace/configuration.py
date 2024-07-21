@@ -109,13 +109,15 @@ class Configuration:
         cleanup of engine resources.
         """
         # Imports on demand since eBPF and PIN support is optional
-        if self.engine == 'stap':
+        if self.engine == "stap":
             self.engine = SystemTapEngine(self)
-        elif self.engine == 'ebpf':
+        elif self.engine == "ebpf":
             import perun.collect.trace.ebpf.engine as ebpf
+
             self.engine = ebpf.BpfEngine(self)
         else:
             import perun.collect.trace.pin.engine as pin
+
             self.engine = pin.PinEngine(self)
 
     def get_functions(self):

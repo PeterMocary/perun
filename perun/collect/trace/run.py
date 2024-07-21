@@ -61,7 +61,7 @@ def before(executable, **kwargs):
     check(GLOBAL_DEPENDENCIES)
     config.engine.check_dependencies()
 
-    if config.engine.name != 'pin':
+    if config.engine.name != "pin":
         # Extract and / or post-process the collect configuration
         extract_configuration(config.engine, kwargs["probes"])
         if not kwargs["probes"].func and not kwargs["probes"].usdt:
@@ -120,7 +120,7 @@ def after(**kwargs):
     WATCH_DOG.info(
         "Processing raw performance data. Note that this may take a while for large raw data files."
     )
-    if kwargs['config'].engine.name == 'pin':
+    if kwargs["config"].engine.name == "pin":
         data_size: int = os.stat(kwargs["config"].engine.dynamic_data).st_size
         data_size += os.stat(kwargs["config"].engine.static_data).st_size
     else:
@@ -129,10 +129,10 @@ def after(**kwargs):
     WATCH_DOG.info(f"Raw data file size: {stdout.format_file_size(data_size)}")
 
     # Dirty temporary hack
-    if kwargs['config'].engine.name in ('ebpf', 'pin'):
-        kwargs['profile'] = Profile()
-        kwargs['profile'].update_resources(
-            {'resources': list(kwargs['config'].engine.transform(**kwargs))}, 'global'
+    if kwargs["config"].engine.name in ("ebpf", "pin"):
+        kwargs["profile"] = Profile()
+        kwargs["profile"].update_resources(
+            {"resources": list(kwargs["config"].engine.transform(**kwargs))}, "global"
         )
     else:
         kwargs["profile"] = kwargs["config"].engine.transform(**kwargs)
@@ -384,21 +384,23 @@ def teardown(**kwargs):
     is_flag=True,
     default=False,
     help="Collect run-times of basic blocks only and infer the function runtimes "
-         "based on basic blocks (reduces collection overhead).",
+    "based on basic blocks (reduces collection overhead).",
 )
 @click.option(
     "--probed",
     "-p",
     is_flag=True,
     default=False,
-    help=("Perform collection using PIN's probed mode "
-          "(can't be used when collection of basic blocks is enabled) [EXPERIMENTAL]."),
+    help=(
+        "Perform collection using PIN's probed mode "
+        "(can't be used when collection of basic blocks is enabled) [EXPERIMENTAL]."
+    ),
 )
 @click.option(
     "--mode",
     "-m",
     type=str,
-    default='time',
+    default="time",
     help="Select what type of data to collect ['time', 'memory', 'instructions']",
 )
 @click.pass_context

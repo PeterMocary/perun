@@ -12,7 +12,7 @@ from perun.utils.log import msg_to_stdout
 
 @dataclass(eq=False, repr=False)
 class MemoryDataEntry(DynamicDataEntry):
-    """ Represents an entry with information about memory manipulation functions (e.g. malloc or
+    """Represents an entry with information about memory manipulation functions (e.g. malloc or
     free) during program runtime. The entry contains data that identify the function along with
     its arguments, return values, and location where was the entry taken (before or after).
 
@@ -23,9 +23,18 @@ class MemoryDataEntry(DynamicDataEntry):
     for variable number of argument values. The after entry then contains only the necessary
     information to pair these entries and the return value in form of an address.
     """
-    FORMAT_BEFORE: ClassVar[List[str]] = ['address', 'name', 'parent_address', 'parent_name',
-                                          'tid', 'pid', 'source_file', 'source_line']
-    FORMAT_AFTER: ClassVar[List[str]] = ['address', 'name', 'tid', 'pid', 'return_pointer']
+
+    FORMAT_BEFORE: ClassVar[List[str]] = [
+        "address",
+        "name",
+        "parent_address",
+        "parent_name",
+        "tid",
+        "pid",
+        "source_file",
+        "source_line",
+    ]
+    FORMAT_AFTER: ClassVar[List[str]] = ["address", "name", "tid", "pid", "return_pointer"]
 
     address: int
     name: str
@@ -45,16 +54,20 @@ class MemoryDataEntry(DynamicDataEntry):
         return self.location == InstrumentationLocation.BEFORE
 
     def __eq__(self, other) -> bool:
-        """ Determine if two entries are complementary. Two entries are complementary when only
+        """Determine if two entries are complementary. Two entries are complementary when only
         their location is different.
 
         :param MemoryDataEntry other: the entry to compare to
 
         :returns bool: True if the other entry is complementary
         """
-        return self.address == other.address and self.name == other.name and \
-            self.tid == other.tid and self.pid == other.pid and \
-            self.location != other.location
+        return (
+            self.address == other.address
+            and self.name == other.name
+            and self.tid == other.tid
+            and self.pid == other.pid
+            and self.location != other.location
+        )
 
     def __repr__(self):
         repr_string: str = (
@@ -66,16 +79,18 @@ class MemoryDataEntry(DynamicDataEntry):
             f"\tpid: {self.pid}\n"
         )
         if self.is_located_before():
-            repr_string += (f"\tparent: {self.parent_address} {self.parent_name}\n"
-                            f"\tsource location: {self.source_line} {self.source_file}\n"
-                            f"\targs: {self.args}\n")
+            repr_string += (
+                f"\tparent: {self.parent_address} {self.parent_name}\n"
+                f"\tsource location: {self.source_line} {self.source_file}\n"
+                f"\targs: {self.args}\n"
+            )
         else:
             repr_string += f"\treturn pointer: {self.return_pointer}\n"
         return repr_string
 
 
 class PinMemoryOutputParser(PinDynamicOutputParser):
-    """ Parser for the 'memory' mode of the PIN engine that produces perun profile entries
+    """Parser for the 'memory' mode of the PIN engine that produces perun profile entries
     with size allocated and deallocated at specific addresses for memory manipulation functions
     such as malloc or free.
     """
@@ -83,16 +98,16 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
     def __init__(self, dynamic_data_file: str, program_data: ProgramData, **kwargs):
         super().__init__(dynamic_data_file)
         self.program_data: ProgramData = program_data
-        self.workload = kwargs['workload']
+        self.workload = kwargs["workload"]
 
         self.function_call_backlog: List[MemoryDataEntry] = []
 
     def _parse_current_dynamic_entry(self):
-        """ Parse a single entry (line) from data collected by PIN into a MemoryDataEntry object.
+        """Parse a single entry (line) from data collected by PIN into a MemoryDataEntry object.
 
         :returns MemoryDataEntry: the raw entry converted into an object
         """
-        entry: List[Union[str, int]] = self._current_raw_entry.strip().split(';')
+        entry: List[Union[str, int]] = self._current_raw_entry.strip().split(";")
         entry_size: int = len(entry)
 
         # convert numerical values to int
@@ -101,26 +116,27 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
                 entry[idx] = int(entry[idx])
 
         if entry_size >= len(MemoryDataEntry.FORMAT_BEFORE):
-            entry_base_data: List[Union[str, int]] = entry[:len(MemoryDataEntry.FORMAT_BEFORE)]
-            entry_arguments_data: List[Union[str, int]] = entry[len(MemoryDataEntry.FORMAT_BEFORE):]
+            entry_base_data: List[Union[str, int]] = entry[: len(MemoryDataEntry.FORMAT_BEFORE)]
+            entry_arguments_data: List[Union[str, int]] = entry[
+                len(MemoryDataEntry.FORMAT_BEFORE) :
+            ]
             data = dict(zip(MemoryDataEntry.FORMAT_BEFORE, entry_base_data))
-            data |= {'args': entry_arguments_data,
-                     'location': InstrumentationLocation.BEFORE}
+            data |= {"args": entry_arguments_data, "location": InstrumentationLocation.BEFORE}
         else:  # MemoryDataEntry.FORMAT_AFTER
             data: Dict[str, Union[str, int]] = dict(zip(MemoryDataEntry.FORMAT_AFTER, entry))
-            data['location'] = InstrumentationLocation.AFTER
+            data["location"] = InstrumentationLocation.AFTER
 
         return MemoryDataEntry(**data)
 
     def parse_dynamic_data_file(self) -> Generator[Dict[str, Union[str, int]], None, None]:
 
-        self._file_descriptor = open(self.file_path, 'r')
+        self._file_descriptor = open(self.file_path, "r")
         self._advance()
 
         while self._current_entry:
 
             if self._current_entry.is_located_before():
-                if self._current_entry.name in ['free', 'delete']:
+                if self._current_entry.name in ["free", "delete"]:
                     # the free and delete do not require after entry - yield the profile data
                     yield self._form_profile_data(start_entry=self._current_entry)
                 else:
@@ -136,11 +152,12 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
                         self.function_call_backlog.pop(index)
                         break
                 if not before_entry:
-                    msg_to_stdout('[DEBUG]: Closing entry does not have a pair in the backlog.', 3)
+                    msg_to_stdout("[DEBUG]: Closing entry does not have a pair in the backlog.", 3)
                     continue
 
-                yield self._form_profile_data(start_entry=before_entry,
-                                              end_entry=self._current_entry)
+                yield self._form_profile_data(
+                    start_entry=before_entry, end_entry=self._current_entry
+                )
 
             self._advance()
 
@@ -151,12 +168,16 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
             # and free respectively, these are kept for time being since their parent is
             # specified as the new or delete, therefore they don't really introduce any confusion
             # to the profile.
-            msg_to_stdout(f'[Debug]: Unpaired memory entries in '
-                          f'backlog: {len(self.function_call_backlog)}.', 3)
+            msg_to_stdout(
+                f"[Debug]: Unpaired memory entries in "
+                f"backlog: {len(self.function_call_backlog)}.",
+                3,
+            )
 
-    def _form_profile_data(self, start_entry: MemoryDataEntry,
-                           end_entry: Optional[MemoryDataEntry] = None) -> Dict[str, Any]:
-        """ Based on the provided entries forms the perun profile data entry.
+    def _form_profile_data(
+        self, start_entry: MemoryDataEntry, end_entry: Optional[MemoryDataEntry] = None
+    ) -> Dict[str, Any]:
+        """Based on the provided entries forms the perun profile data entry.
 
         :param MemoryDataEntry start_entry: the entry before a memory manipulation function
         :param MemoryDataEntry end_entry: the entry after a memory manipulation function if
@@ -165,49 +186,46 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
         :returns dict: the perun profile entry
         """
         arg_info_based_on_entry_name: Dict[str, List[Tuple[str, str]]] = {
-            'new': [('size_t', 'size')],
-            'delete': [('void*', 'pointer_address')],
-            'malloc': [('size_t', 'size')],
-            'free': [('void*', 'pointer_address')],
-            'calloc': [('int', 'count'), ('size_t', 'size')],
-            'realloc': [('void*', 'pointer_address'), ('size_t', 'size')]
+            "new": [("size_t", "size")],
+            "delete": [("void*", "pointer_address")],
+            "malloc": [("size_t", "size")],
+            "free": [("void*", "pointer_address")],
+            "calloc": [("int", "count"), ("size_t", "size")],
+            "realloc": [("void*", "pointer_address"), ("size_t", "size")],
         }
 
         amount_based_on_entry_name: int = 0
-        if start_entry.name == 'calloc':
+        if start_entry.name == "calloc":
             amount_based_on_entry_name = start_entry.args[0] * start_entry.args[1]
-        elif start_entry.name == 'realloc':
+        elif start_entry.name == "realloc":
             amount_based_on_entry_name = start_entry.args[1]
-        elif start_entry.name in ['malloc', 'new']:
+        elif start_entry.name in ["malloc", "new"]:
             amount_based_on_entry_name = start_entry.args[0]
-        elif start_entry.name in ['free', 'delete']:
+        elif start_entry.name in ["free", "delete"]:
             amount_based_on_entry_name = 0
 
         profile_data: Dict[str, Union[str, int]] = {
-            'workload': self.workload,
-            'type': 'memory',
-            'amount': amount_based_on_entry_name,
-            'tid': start_entry.tid,
-            'uid': f'{start_entry.name}#{start_entry.parent_name}',
-            'caller': start_entry.parent_name,
+            "workload": self.workload,
+            "type": "memory",
+            "amount": amount_based_on_entry_name,
+            "tid": start_entry.tid,
+            "uid": f"{start_entry.name}#{start_entry.parent_name}",
+            "caller": start_entry.parent_name,
             # NOTE: This is the line of memory function call (not implementation of the memory
             # function)
-            'source-lines': start_entry.source_line,
-            'source-file': start_entry.source_file,
+            "source-lines": start_entry.source_line,
+            "source-file": start_entry.source_file,
         }
 
         if end_entry:
-            profile_data |= {
-                'return-value': end_entry.return_pointer,
-                'return-value-type': 'void*'
-            }
+            profile_data |= {"return-value": end_entry.return_pointer, "return-value-type": "void*"}
 
         for idx, arg_value in enumerate(start_entry.args):
             argument_info: Tuple[str, str] = arg_info_based_on_entry_name[start_entry.name][idx]
             profile_data |= {
-                f'arg_value#{idx}': arg_value,
-                f'arg_type#{idx}': argument_info[0],
-                f'arg_name#{idx}': argument_info[1]
+                f"arg_value#{idx}": arg_value,
+                f"arg_type#{idx}": argument_info[0],
+                f"arg_name#{idx}": argument_info[1],
             }
 
         return profile_data

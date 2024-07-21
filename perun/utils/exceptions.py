@@ -518,8 +518,8 @@ class SuppressedExceptions:
 
 
 class PinUnspecifiedPinRoot(Exception):
-    """Raised when PIN_ROOT os variable isn't defined.
-    """
+    """Raised when PIN_ROOT os variable isn't defined."""
+
     def __init__(self):
         super().__init__("")
         self.msg = "Undefined PIN_ROOT! Please execute: export PIN_ROOT=<absolute-path-to-pin>"
@@ -529,12 +529,14 @@ class PinUnspecifiedPinRoot(Exception):
 
 
 class PinBinaryScanUnsuccessful(Exception):
-    """Raised when program binary does not include dwarf 4 debug info wasn't included.
-    """
+    """Raised when program binary does not include dwarf 4 debug info wasn't included."""
+
     def __init__(self):
         super().__init__("")
-        self.msg = ("Couldn't read the DWARF debug info, please ensure that the binary is compiled "
-                    "with -gdwarf-4 option (using gcc).")
+        self.msg = (
+            "Couldn't read the DWARF debug info, please ensure that the binary is compiled "
+            "with -gdwarf-4 option (using gcc)."
+        )
 
     def __str__(self):
         return self.msg
