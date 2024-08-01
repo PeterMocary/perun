@@ -18,7 +18,13 @@ VOID instrumentBasicBlocksInTrace(TRACE trace, VOID *v) {
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
         basicBlockId = BBL_Address(bbl);
         basicBlockMetadata = BasicBlockMetadata(bbl);
+        {# TODO: Remove the pragma when error is fixed #}
+        // The following pragma ignores the uninitialized variable warning that prevents pintool from compiling
+        // This is a problem with pintools on gcc 12 and newer
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
         basicBlockIterator = basicBlocks.emplace(basicBlockId, basicBlockMetadata).first;
+        #pragma GCC diagnostic pop
         // Instrument the first instruction of the basic block
         INS_InsertCall(BBL_InsHead(bbl), IPOINT_BEFORE, (AFUNPTR)basicBlockAnalysis,
                        IARG_FAST_ANALYSIS_CALL,
