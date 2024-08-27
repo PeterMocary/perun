@@ -133,8 +133,8 @@ class PinInstructionOutputParser(PinDynamicOutputParser):
 
         while self._current_entry:
             if self._current_entry.granularity != Granularity.BBL:
-                # TODO: Exceptions
-                Exception(
+                # TODO: Exception
+                raise Exception(
                     "The PinInstructionsParser expects only basic blocks in the dynamic "
                     "data file."
                 )
@@ -192,7 +192,7 @@ class PinInstructionOutputParser(PinDynamicOutputParser):
                     if function_index < 0:
                         # TODO: exception
                         raise Exception(
-                            "Could not locate parent function of current basic block " "in backlog."
+                            "Could not locate parent function of current basic block in backlog."
                         )
                     self.function_call_backlog[
                         function_index
@@ -255,9 +255,6 @@ class PinInstructionOutputParser(PinDynamicOutputParser):
                 # function will contain count of all executed instructions
                 if self.function_call_backlog:
                     function_index: int = self._find_backlog_index_of_caller_function()
-                    if function_index < 0:
-                        # TODO: exception
-                        raise Exception("Could not locate caller of a function in backlog.")
                     self.function_call_backlog[
                         function_index
                     ].instructions_count += function_start.instructions_count
@@ -302,13 +299,14 @@ class PinInstructionOutputParser(PinDynamicOutputParser):
         for index in range(len(self.function_call_backlog) - 1, -1, -1):
             if self.function_call_backlog[index].entry.is_in_same_scope(self._current_entry):
                 return index
-        return -1
+
+        # TODO: exception
+        raise Exception("Could not locate caller of a function in backlog.")
 
     def _find_backlog_index_of_parent_function(self) -> int:
         """Based on current entry, finds the index of an entry with information about the parent
-        function of the basic block. In other words, finds the entry in function calls backlog that
-        represents the function that current basic block entry belongs to. Expects the current entry
-        to be basic block granularity.
+        function of the basic block in the current entry. Expects the current entry to be basic
+        block granularity when called.
 
         :returns int: the index of the last complementary entry in the backlog or -1
         """
@@ -327,7 +325,6 @@ class PinInstructionOutputParser(PinDynamicOutputParser):
             ].function_name
             if function_name == expected_function_name:
                 return index
-
         return -1
 
     def _form_profile_data(
@@ -411,10 +408,6 @@ class PinInstructionOutputParser(PinDynamicOutputParser):
         #  with the tid and pid combination? Needs some testing on application with different tid
         #  and pid.
         caller_index: int = self._find_backlog_index_of_caller_function()
-        if caller_index < 0:
-            # TODO: exception
-            raise Exception("Could not locate caller of a function in backlog.")
-
         caller_function_entry: InstructionDataEntry = self.function_call_backlog[caller_index].entry
         caller_of_caller_function: str = self.function_call_backlog[caller_index].caller
         caller_function_name: str = self.program_data.get_function_name(

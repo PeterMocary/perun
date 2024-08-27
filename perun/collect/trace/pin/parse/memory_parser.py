@@ -134,7 +134,6 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
         self._advance()
 
         while self._current_entry:
-
             if self._current_entry.is_located_before():
                 if self._current_entry.name in ["free", "delete"]:
                     # the free and delete do not require after entry - yield the profile data
@@ -153,6 +152,7 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
                         break
                 if not before_entry:
                     msg_to_stdout("[DEBUG]: Closing entry does not have a pair in the backlog.", 3)
+                    self._advance()
                     continue
 
                 yield self._form_profile_data(
@@ -169,7 +169,7 @@ class PinMemoryOutputParser(PinDynamicOutputParser):
             # specified as the new or delete, therefore they don't really introduce any confusion
             # to the profile.
             msg_to_stdout(
-                f"[Debug]: Unpaired memory entries in "
+                "[Debug]: Unpaired memory entries in "
                 f"backlog: {len(self.function_call_backlog)}.",
                 3,
             )

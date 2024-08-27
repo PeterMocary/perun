@@ -96,13 +96,14 @@ class TimeDataEntry:
     def get_data_for_profile(self, other) -> Dict[str, Any]:
         """Extracts relevant information from the entry for the perun performance profile.
 
+        NOTE: Will not check if the other entry is compatible because when collecting only basic blocks
+        the basic block entries are used to create profile data for functions. These basic block entries
+        will have correct location, however, their id will be different since they are different basic blocks.
+
         :param TimeDataEntry other: the complementary data entry
 
         :return dict: partial perun performance profile entry
         """
-        if self != other:
-            # The entries are not compatible, therefore a profile entry won't be created
-            return {}
 
         profile_data: Dict[str, Any] = {
             "tid": self.tid,
@@ -165,9 +166,7 @@ class PinTimeOutputParser(PinDynamicOutputParser):
         # Parse the optional arguments at the end of a function entry
         if data_entry.is_function_granularity() and len(entry) > len(TimeDataEntry.FORMAT):
             # There are additional function arguments present in the entry
-            function: FunctionData = self.program_data.functions[
-                data_entry.id
-            ]  # Information about the function
+            function: FunctionData = self.program_data.functions[data_entry.id]
             # Values of function arguments
             argument_values: List[str] = entry[len(TimeDataEntry.FORMAT) :]
 
@@ -280,17 +279,11 @@ class PinTimeOutputParser(PinDynamicOutputParser):
 
             self._advance()
 
-        if self.function_call_backlog:
+        if self.function_call_backlog or self.basic_block_backlog:
             msg_to_stdout(
-                f"[DEBUG]: Routines backlog contains "
-                f"{len(self.function_call_backlog)} unpaired entries.",
-                3,
-            )
-
-        if self.basic_block_backlog:
-            msg_to_stdout(
-                "[DEBUG]: Basic blocks backlog contains "
-                f"{len(self.basic_block_backlog)} unpaired entries.",
+                "[DEBUG]: Unpaired entries in backlogs: "
+                f"Functions - {len(self.function_call_backlog)} and "
+                f"Basic blocks - {len(self.basic_block_backlog)}.",
                 3,
             )
 
@@ -413,7 +406,6 @@ class PinTimeOutputParser(PinDynamicOutputParser):
         :returns dict: a perun profile data entry
         """
         profile_data: Dict[str, Any] = start_entry.get_data_for_profile(end_entry)
-
         if not profile_data:
             return {}
 

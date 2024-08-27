@@ -41,6 +41,8 @@ def get_function_info_from_binary(filename: str) -> List[FunctionInfo]:
     """Reads DWARF debug information form the specified binary file and extracts information
     about functions contained in it. Namely, function name and argument names, types and indices.
 
+    Note: expects DWARF info to be present in the binary
+
     :param str filename: path to binary with DWARF debug info one wants to analyze
 
     :return list: list of FunctionInfo objects representing each function contained in
@@ -49,10 +51,6 @@ def get_function_info_from_binary(filename: str) -> List[FunctionInfo]:
     """
     with open(filename, "rb") as file_descriptor:
         elf_file: ELFFile = ELFFile(file_descriptor)
-
-        if not elf_file.has_dwarf_info():
-            # File has no DWARF info
-            raise PinBinaryScanUnsuccessful
 
         dwarf_info: DWARFInfo = elf_file.get_dwarf_info()
 

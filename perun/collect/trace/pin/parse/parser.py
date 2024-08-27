@@ -180,7 +180,8 @@ class PinStaticOutputParser:
                 table_parser: Callable = table_parsers[table_name]
                 table_parser()  # reads next line before finishing
             else:
-                msg_to_stdout("[Debug]: Skipping table with unknown separator: #{table_name}", 3)
+                msg_to_stdout(f"[Debug]: Skipping table with unknown separator: #{table_name}", 3)
+                self._advance()
 
         self._file_descriptor.close()
         return self._program_data
@@ -199,12 +200,10 @@ class PinStaticOutputParser:
         while self._current_line:
             if ENTRY_VALUE_SEPARATOR not in self._current_line:
                 # The sequence of the table entries has ended
-                self._program_data.source_code_files = source_files
-                return
+                break
 
             entry: List[str] = self._current_line.strip().split(ENTRY_VALUE_SEPARATOR, 1)
             source_files.insert(0, entry[0])
-
             self._advance()
 
         self._program_data.source_code_files = source_files
@@ -232,8 +231,8 @@ class PinStaticOutputParser:
 
             entry: List[Union[str, int]] = self._current_line.strip().split(ENTRY_VALUE_SEPARATOR)
             if len(entry) != len(entry_format):
-                self._program_data.functions = functions
-                return
+                # format does no longer match therefore end the parsing of this table
+                break
 
             # Convert numerical values to int
             for idx, item in enumerate(entry_format):
@@ -273,14 +272,12 @@ class PinStaticOutputParser:
 
         while self._current_line:
             if ENTRY_VALUE_SEPARATOR not in self._current_line:
-                self._program_data.basic_blocks = basic_blocks
-                return
+                break
 
             entry: List[Union[str, int]] = self._current_line.strip().split(ENTRY_VALUE_SEPARATOR)
             if len(entry) < entry_format_size:
                 # Expected at least one source code line number at the end
-                self._program_data.basic_blocks = basic_blocks
-                return
+                break
 
             # Convert numerical values to int
             # Base format values - skips the source code lines which are handled after

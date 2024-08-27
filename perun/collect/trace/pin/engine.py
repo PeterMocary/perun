@@ -23,7 +23,7 @@ from perun.utils.external.commands import run_safely_external_command
 from perun.utils.log import msg_to_stdout
 from perun.utils.exceptions import (
     InvalidBinaryException,
-    PinUnspecifiedPinRoot,
+    PinInvalidPinRoot,
     PinBinaryInstrumentationFailed,
     InvalidParameterException,
 )
@@ -78,8 +78,8 @@ class PinEngine(engine.CollectEngine):
         """Check that the tools for pintool creation are available and if pin's root folder is
         specified.
 
-        :raises: PinUnspecifiedPinRoot: the PIN_ROOT environment variable is not set or contains
-                                        wrong path
+        :raises: PinInvalidPinRoot: the PIN_ROOT environment variable is not set or contains
+                                    wrong path
         :raises: InvalidBinaryException: binary has no dwarf info
         """
         msg_to_stdout("[Info]: Checking dependencies.", 2)
@@ -89,16 +89,13 @@ class PinEngine(engine.CollectEngine):
         # TODO: maybe add check if the specified directory contains some of the required contents
         # TODO: check the version of pin (currently the version is capped on 3.27 because the
         #       pintool compilation changes in 3.28 with addition of dwarf reading capability)
-        if "PIN_ROOT" not in os.environ.keys():
-            raise PinUnspecifiedPinRoot()
+        if (
+            "PIN_ROOT" not in os.environ.keys()
+            or not os.path.isdir(os.environ["PIN_ROOT"])
+            or not os.path.isabs(os.environ["PIN_ROOT"])
+        ):
+            raise PinInvalidPinRoot()
         self.__pin_root = os.environ["PIN_ROOT"]
-        if not os.path.isdir(self.__pin_root) or not os.path.isabs(self.__pin_root):
-            msg_to_stdout(
-                "[Debug]: PIN_ROOT environmental variable exists, but is not valid "
-                "absolute path.",
-                3,
-            )
-            raise PinUnspecifiedPinRoot()
 
         # The specified binary needs to include dwarf4 info
         with open(self.binary, "rb") as binary:
@@ -134,6 +131,9 @@ class PinEngine(engine.CollectEngine):
             ),
         }
         msg_to_stdout(f"[Debug]: Configuration: {configuration}.", 3)
+        if configuration["mode"] not in ["time", "instructions", "memory"]:
+            # TODO: exception
+            raise Exception("Unknown pin engine mode!")
 
         if configuration["collect_arguments"]:
             # Note: When collecting arguments of functions, the dwarf debug information
@@ -220,6 +220,7 @@ class PinEngine(engine.CollectEngine):
             )
         else:
             # TODO: exception
+            # Note: this should not be reachable - checked when pintool is being assembled
             Exception("Unknown pin engine mode!")
 
         return dynamic_parser.parse_dynamic_data_file()
