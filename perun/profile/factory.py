@@ -58,7 +58,7 @@ class Profile(MutableMapping[str, Any]):
         "metric.value",
         "metric.score-value",
         "metric.percentile",
-        "return-value"
+        "return-value",
     }
     persistent = {
         "trace",
