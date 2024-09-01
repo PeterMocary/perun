@@ -13,6 +13,7 @@ import shutil
 from click.testing import CliRunner
 from elftools.dwarf.compileunit import CompileUnit
 import pytest
+from pprint import pprint
 
 # Perun Imports
 from perun import cli
@@ -25,7 +26,7 @@ from perun.profile.factory import Profile
 import perun.collect.trace.run as trace_run
 import perun.collect.trace.systemtap.engine as stap
 import perun.collect.trace.pin.engine as pin
-from perun.collect.trace.pin.parse import parser, time_parser, instructions_parser, memory_parser
+from perun.collect.trace.pin.parse import parser, instructions_parser
 import perun.testing.utils as test_utils
 
 
@@ -694,18 +695,20 @@ def test_collect_trace_pin_engine(pcs_full, mode, additional_arguments):
         ]
         + additional_arguments,
     )  # fmt: skip
+    pprint(result.output)
 
     generated_profiles = [file for file in os.listdir(profiles_path) if not file.startswith(".")]
     trace_files = [file for file in os.listdir(trace_files_path) if not file.startswith(".")]
 
-    pin_root = os.environ["PIN_ROOT"] if os.environ["PIN_ROOT"] else ""
+    pin_root = os.environ["PIN_ROOT"] if "PIN_ROOT" in os.environ else ""
     if not pin_root or not os.path.isdir(pin_root):
-        missing_pin_error_msg = (
-            "Undefined PIN_ROOT! Please execute: export PIN_ROOT=<absolute-path-to-pin>"
-        )
-        assert missing_pin_error_msg in result.output
+        assert "Undefined or invalid pin root!" in result.output
         assert len(generated_profiles) == 0
-        assert len(trace_files) == 0
+        assert len(trace_files) == 2
+        assert all(
+            os.stat(os.path.join(trace_files_path, trace_file)).st_size == 0
+            for trace_file in trace_files
+        )
         assert result.exit_code == 1
         return
 
@@ -750,69 +753,96 @@ def test_collect_trace_pin_engine(pcs_full, mode, additional_arguments):
         assert any(key.startswith("BBL") for key in profile_contents["resources"])
 
 
-# TODO: split this test into 3 test functions
-@pytest.mark.parametrize(
-    "target_binary, additional_args, pin_root, expected_error_msg",
-    [
-        ("tst", [], "/invalid/path", "Undefined or invalid pin root!"),  # test invalid pin root
-        (
-            "nonexistent",
-            [],
-            "set_to_predefined_variable",
-            "does not exist or is not an executable ELF",
-        ),  # test nonexistent binary argument
-        (
-            "tst-no-debug",
-            [],
-            "set_to_predefined_variable",
-            "does not exist or is not an executable ELF",
-        ),  # test binary argument without debug info
-        (
-            "tst",
-            ["--mode", "nonexistent"],
-            "set_to_predefined_variable",
-            "Unknown pin engine mode!",
-        ),  # test wrong mode argument value
-        ("tst", [], "set_to_predefined_variable", "Failed to instrument the program!"),
-    ],
-)
-def test_collect_trace_pin_engine_fail(
-    monkeypatch, pcs_full, target_binary, additional_args, pin_root, expected_error_msg
-):
+@pytest.mark.parametrize("target_binary", ["nonexistent", "tst-no-debug"])
+def test_collect_trace_pin_engine_wrong_target_binary(monkeypatch, pcs_full, target_binary):
     runner = CliRunner()
     target = os.path.join(os.path.split(__file__)[0], "sources", "collect_trace", target_binary)
-    original_pin_root = os.environ["PIN_ROOT"] if os.environ["PIN_ROOT"] else ""
+    pin_root = os.environ["PIN_ROOT"] if "PIN_ROOT" in os.environ else ""
+    if not pin_root or not os.path.isdir(pin_root):
+        # assign a fake directory to the PIN_ROOT
+        os.environ["PIN_ROOT"] = os.path.abspath(os.path.dirname(__file__))
 
-    if pin_root == "set_to_predefined_variable":
-        if not original_pin_root or not os.path.isdir(original_pin_root):
-            # test requires predefined PIN_ROOT wich was not defined
-            return
-        pin_root = original_pin_root
-
-    if "Failed to instrument the program" in expected_error_msg:
-        print("happens")
-
-        def _mocked_assemble_collect_program(self, **_):
-            return
-
-        monkeypatch.setattr(
-            pin.PinEngine, "assemble_collect_program", _mocked_assemble_collect_program
-        )
-
-    os.environ["PIN_ROOT"] = pin_root
     result = runner.invoke(
-        cli.collect,
-        [
+        cli.collect, [
             "--cmd", target,
             "trace",
             "--engine", "pin",
         ]
-        + additional_args,
+    )  # fmt: skip
+
+    # revert the fake PIN_ROOT
+    os.environ["PIN_ROOT"] = pin_root
+
+    assert "does not exist or is not an executable ELF" in result.output
+    assert result.exit_code == 1
+    return
+
+
+def test_collect_trace_pin_engine_invalid_pin_root_path(pcs_full):
+    runner = CliRunner()
+    target = os.path.join(os.path.split(__file__)[0], "sources", "collect_trace", "tst")
+    original_pin_root = os.environ["PIN_ROOT"] if "PIN_ROOT" in os.environ else ""
+
+    os.environ["PIN_ROOT"] = "/invalid/pin/root/path"
+    result = runner.invoke(
+        cli.collect, [
+            "--cmd", target,
+            "trace",
+            "--engine", "pin",
+        ],
     )  # fmt: skip
     os.environ["PIN_ROOT"] = original_pin_root
+    pprint(result.output)
 
-    assert expected_error_msg in result.output
+    assert "Undefined or invalid pin root!" in result.output
     assert result.exit_code == 1
+    return
+
+
+def test_collect_trace_pin_engine_invalid_mode(pcs_full):
+    runner = CliRunner()
+    target = os.path.join(os.path.split(__file__)[0], "sources", "collect_trace", "tst")
+    pin_root = os.environ["PIN_ROOT"] if "PIN_ROOT" in os.environ else ""
+    if not pin_root or not os.path.isdir(pin_root):
+        # skip the test when pin is not available
+        return
+
+    result = runner.invoke(
+        cli.collect, [
+            "--cmd", target,
+            "trace",
+            "--engine", "pin",
+            "--mode", "nonexistent",
+        ],
+    )  # fmt: skip
+    pprint(result.output)
+
+    assert result.exit_code == 1
+    assert "Unknown pin engine mode!" in result.output
+    return
+
+
+def test_collect_trace_pin_engine_fail_instrumentation(monkeypatch, pcs_full):
+    runner = CliRunner()
+    target = os.path.join(os.path.split(__file__)[0], "sources", "collect_trace", "tst")
+    pin_root = os.environ["PIN_ROOT"] if "PIN_ROOT" in os.environ else ""
+    if not pin_root or not os.path.isdir(pin_root):
+        # skip the test when pin is not available
+        return
+
+    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", lambda self, **_: None)
+
+    result = runner.invoke(
+        cli.collect, [
+            "--cmd", target,
+            "trace",
+            "--engine", "pin",
+        ]
+    )  # fmt: skip
+    pprint(result.output)
+
+    assert result.exit_code == 1
+    assert "Failed to instrument the program!" in result.output
     return
 
 
@@ -825,9 +855,6 @@ def test_pin_parsing_instructions_mode_dynamic_data_has_only_basic_blocks(pcs_fu
         with open(self.dynamic_data, "w") as dynamic_data_file:
             dynamic_data_file.write("00;123;123;123")
 
-    def _mocked_assemble_collect_program(self, **_):
-        return
-
     def _mocked_parse_current_dynamic_entry(self):
         dummy_entry = {
             "granularity": parser.Granularity.RTN,
@@ -838,7 +865,8 @@ def test_pin_parsing_instructions_mode_dynamic_data_has_only_basic_blocks(pcs_fu
         }
         return instructions_parser.InstructionDataEntry(**dummy_entry)
 
-    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", _mocked_assemble_collect_program)
+    monkeypatch.setattr(pin.PinEngine, "check_dependencies", lambda _: None)
+    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", lambda self, **_: None)
     monkeypatch.setattr(pin.PinEngine, "collect", _mocked_collect)
     monkeypatch.setattr(
         instructions_parser.PinInstructionOutputParser,
@@ -854,6 +882,7 @@ def test_pin_parsing_instructions_mode_dynamic_data_has_only_basic_blocks(pcs_fu
             "--mode", "instructions"
         ]
     )  # fmt: skip
+    pprint(result.output)
 
     expected_error_msg = "expects only basic blocks in the dynamic data file"
     assert expected_error_msg in result.output
@@ -884,7 +913,6 @@ def test_pin_parsing_dynamic_data_missing_pair_entries(pcs_full, monkeypatch, mo
         "94025837187843;main;1;7;1;9;11;12\n"
         "94025837187869;main;1;6;1;13;14\n"
     )
-
     dynamic_data_contents_instructions = [
         "10;94025837187843;0;1205897\n",
         "11;94025837187843;0;1205897\n",
@@ -916,6 +944,8 @@ def test_pin_parsing_dynamic_data_missing_pair_entries(pcs_full, monkeypatch, mo
     ]
 
     expected_resources_count = 1
+    basic_blocks_backlog_unpaired = 1
+    functions_backlog_unpaired = 1
     if mode == "instructions":
         dynamic_data_contents = dynamic_data_contents_instructions
         static_data_contents = static_data_contents_instructions
@@ -928,6 +958,7 @@ def test_pin_parsing_dynamic_data_missing_pair_entries(pcs_full, monkeypatch, mo
     if mode == "time":
         dynamic_data_contents = dynamic_data_contents_time
         static_data_contents = static_data_contents_time
+        basic_blocks_backlog_unpaired = 0
 
     dynamic_data_contents.pop(entry_index)
 
@@ -938,9 +969,6 @@ def test_pin_parsing_dynamic_data_missing_pair_entries(pcs_full, monkeypatch, mo
             with open(self.static_data, "w") as static_data_file:
                 static_data_file.write(static_data_contents)
 
-    def _mocked_assemble_collect_program(self, **_):
-        return
-
     def _mocked_after(**kwargs):
         resources = list(kwargs["config"].engine.transform(**kwargs))
         assert len(resources) == expected_resources_count
@@ -948,7 +976,8 @@ def test_pin_parsing_dynamic_data_missing_pair_entries(pcs_full, monkeypatch, mo
         kwargs["profile"].update_resources({"resources": resources}, "global")
         return CollectStatus.OK, "", dict(kwargs)
 
-    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", _mocked_assemble_collect_program)
+    monkeypatch.setattr(pin.PinEngine, "check_dependencies", lambda _: None)
+    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", lambda self, **_: None)
     monkeypatch.setattr(pin.PinEngine, "collect", _mocked_collect)
     monkeypatch.setattr(trace_run, "after", _mocked_after)
 
@@ -963,18 +992,15 @@ def test_pin_parsing_dynamic_data_missing_pair_entries(pcs_full, monkeypatch, mo
             "--mode", mode
         ],
     )  # fmt: skip
+    pprint(result.output)
 
     assert result.exit_code == 0
 
     # check some debug messages
-    basic_blocks_backlog_unpaired = 1
-    functions_backlog_unpaired = 1
     if entry_index == -2 or entry_index == 0:  # if removing the opening entry
-        assert "Closing entry does not have a pair in the backlog" in result.output
         basic_blocks_backlog_unpaired = 0
         functions_backlog_unpaired = 0
-    if mode == "time":
-        basic_blocks_backlog_unpaired = 0
+        assert "Closing entry does not have a pair in the backlog" in result.output
 
     unpaired_entries_in_backlogs_cnt = basic_blocks_backlog_unpaired + functions_backlog_unpaired
     if mode in ["instructions", "time"] and unpaired_entries_in_backlogs_cnt > 0:
@@ -1010,10 +1036,8 @@ def test_pin_parsing_malformed_static_data(pcs_full, monkeypatch):
         with open(self.static_data, "w") as static_data_file:
             static_data_file.write(static_data_contents)
 
-    def _mocked_assemble_collect_program(self, **_):
-        return
-
-    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", _mocked_assemble_collect_program)
+    monkeypatch.setattr(pin.PinEngine, "check_dependencies", lambda _: None)
+    monkeypatch.setattr(pin.PinEngine, "assemble_collect_program", lambda self, **_: None)
     monkeypatch.setattr(pin.PinEngine, "collect", _mocked_collect)
 
     result = runner.invoke(
@@ -1027,6 +1051,7 @@ def test_pin_parsing_malformed_static_data(pcs_full, monkeypatch):
             "--mode", "instructions",
         ],
     )  # fmt: skip
+    pprint(result.output)
 
     assert result.exit_code == 0
     assert (
@@ -1042,6 +1067,7 @@ def test_pin_binary_scan_fail(pcs_full, monkeypatch):
     def _mocked_get_top_DIE(self):
         raise Exception("Dummy exception")
 
+    monkeypatch.setattr(pin.PinEngine, "check_dependencies", lambda _: None)
     monkeypatch.setattr(CompileUnit, "get_top_DIE", _mocked_get_top_DIE)
 
     result = runner.invoke(
@@ -1055,6 +1081,7 @@ def test_pin_binary_scan_fail(pcs_full, monkeypatch):
             "--collect-arguments",
         ],
     )  # fmt: skip
+    pprint(result.output)
 
     assert result.exit_code == 1
     assert (
